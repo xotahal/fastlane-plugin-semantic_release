@@ -1,3 +1,6 @@
+require 'fastlane/action'
+require_relative '../helper/semantic_release_helper'
+
 module Fastlane
   module Actions
     module SharedValues
@@ -20,8 +23,7 @@ module Fastlane
         version = lane_context[SharedValues::RELEASE_NEXT_VERSION]
 
         # Get commits log between last version and head
-        command = "git log --pretty='%s|%H|%h|%an|%at' --reverse #{lastTagHas}..HEAD"
-        commits = Actions.sh(command, log: false).chomp
+        commits = Helper::SemanticReleaseHelper.git_log('%s|%H|%h|%an|%at', lastTagHas)
         parsed = parseCommits(commits.split("\n"))
 
 
