@@ -5,6 +5,7 @@ module Fastlane
   module Actions
     module SharedValues
       RELEASE_ANALYZED = :RELEASE_ANALYZED
+      RELEASE_IS_NEXT_VERSION_HIGHER = :RELEASE_IS_NEXT_VERSION_HIGHER
       RELEASE_LAST_TAG_HASH = :RELEASE_LAST_TAG_HASH
       RELEASE_LAST_VERSION = :RELEASE_LAST_VERSION
       RELEASE_NEXT_MAJOR_VERSION = :RELEASE_NEXT_MAJOR_VERSION
@@ -86,6 +87,7 @@ module Fastlane
         isReleaseable = Helper::SemanticReleaseHelper.semver_gt(nextVersion, version)
 
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = isReleaseable
         # Last release analysis
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
         Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
@@ -95,13 +97,10 @@ module Fastlane
         Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = nextPatch
         Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = nextVersion
 
-        if isReleaseable then
-          UI.success("Next version (#{nextVersion}) is higher than last version (#{version}). This version should be released.")
-        else
-          UI.test_failure!('There are no commit that would change next version since last release')
-        end
+        successMessage = "Next version (#{nextVersion}) is higher than last version (#{version}). This version should be released."
+        UI.success(successMessage) if isReleaseable
 
-        nextVersion
+        isReleaseable
       end
 
       #####################################################
@@ -147,6 +146,7 @@ module Fastlane
         # Example
         [
           ['RELEASE_ANALYZED', 'True if commits were analyzed.'],
+          ['RELEASE_IS_NEXT_VERSION_HIGHER', 'True if next version is higher then last version'],
           ['RELEASE_LAST_TAG_HASH', 'Hash of commit that is tagged as a last version'],
           ['RELEASE_LAST_VERSION', 'Last version number - parsed from last tag.'],
           ['RELEASE_NEXT_MAJOR_VERSION', 'Major number of the next version'],
@@ -158,7 +158,7 @@ module Fastlane
 
       def self.return_value
         # If your method provides a return value, you can describe here what it does
-        "Returns next version string"
+        "Returns true if the next version is higher then the last version"
       end
 
       def self.authors
