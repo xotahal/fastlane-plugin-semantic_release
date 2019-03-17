@@ -4,7 +4,6 @@ require_relative '../helper/semantic_release_helper'
 module Fastlane
   module Actions
     module SharedValues
-      CONVENTIONAL_CHANGELOG = :CONVENTIONAL_CHANGELOG
     end
 
     class ConventionalChangelogAction < Action
@@ -34,8 +33,6 @@ module Fastlane
         elsif params[:format] == 'slack'
           result = slack(parsed, version, commitUrl, params)
         end
-
-        Actions.lane_context[SharedValues::CONVENTIONAL_CHANGELOG] = result
 
         result
       end
@@ -216,9 +213,7 @@ module Fastlane
       def self.output
         # Define the shared values you are going to provide
         # Example
-        [
-          ['CONVENTIONAL_CHANGELOG', 'Generated conventional changelog']
-        ]
+        [ ]
       end
 
       def self.return_value
