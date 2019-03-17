@@ -49,6 +49,9 @@ module Fastlane
         result += "(#{Date.today})"
 
         for type in params[:order]
+          # write section only if there is at least one commit
+          next if !commits.any? { |commit| commit[:type] == type }
+
           result += "\n\n"
           result += "### #{sections[type.to_sym]}"
           result += "\n"
