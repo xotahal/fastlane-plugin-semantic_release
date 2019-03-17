@@ -4,7 +4,7 @@ require_relative '../helper/semantic_release_helper'
 module Fastlane
   module Actions
     module SharedValues
-      # CONVENTIONAL_CHANGELOG_CUSTOM_VALUE = :CONVENTIONAL_CHANGELOG_CUSTOM_VALUE
+      CONVENTIONAL_CHANGELOG = :CONVENTIONAL_CHANGELOG
     end
 
     class ConventionalChangelogAction < Action
@@ -15,8 +15,8 @@ module Fastlane
         # If analyze commits action was not run there will be no version in shared
         # values. We need to run the action to get next version number
         if !analyzed then
-          UI.message("Release hasn't been analyzed yet. Running analyze_release action.")
-          version = other_action.analyze_commits(match: params[:match])
+          UI.user_error!("Release hasn't been analyzed yet. Run analyze_commits action first please.")
+          # version = other_action.analyze_commits(match: params[:match])
         end
 
         lastTagHas = lane_context[SharedValues::RELEASE_LAST_TAG_HASH]
@@ -27,14 +27,15 @@ module Fastlane
         parsed = parseCommits(commits.split("\n"))
 
 
-        repositoryUrl = params[:repository_url] || "https://#{params[:sc]}.com/#{params[:user_name]}/#{params[:project_name]}"
-        commitUrl = params[:commit_url] || "#{repositoryUrl}/commit"
+        commitUrl = params[:commit_url]
 
         if params[:format] == 'markdown' then
           result = markdown(parsed, version, commitUrl, params)
         elsif params[:format] == 'slack'
           result = slack(parsed, version, commitUrl, params)
         end
+
+        Actions.lane_context[SharedValues::CONVENTIONAL_CHANGELOG] = result
 
         result
       end
@@ -82,6 +83,9 @@ module Fastlane
         result += "\n"
 
         for type in params[:order]
+          # write section only if there is at least one commit
+          next if !commits.any? { |commit| commit[:type] == type }
+
           result += "\n\n"
           result += "*#{sections[type.to_sym]}*"
           result += "\n"
@@ -116,9 +120,17 @@ module Fastlane
 
           subjectSplitted = splitted[0].split(":")
 
+          if subjectSplitted.length > 1 then
+            type = subjectSplitted[0]
+            subject = subjectSplitted[1]
+          else
+            type = 'no_type'
+            subject = subjectSplitted[0]
+          end
+
           commit = {
-            type: subjectSplitted[0],
-            subject: subjectSplitted[1].strip(),
+            type: type.strip(),
+            subject: subject.strip(),
             hash: splitted[1],
             shortHash: splitted[2],
             authorName: splitted[3],
@@ -137,13 +149,11 @@ module Fastlane
       #####################################################
 
       def self.description
-        "A short description with <= 80 characters of what this action does"
+        "Get commits since last version and generates release notes"
       end
 
       def self.details
-        # Optional:
-        # this is your chance to provide a more detailed description of this action
-        "You can use this action to do cool things..."
+        "Uses conventional commits. It groups commits by their types and generates release notes in markdown or slack format."
       end
 
       def self.available_options
@@ -151,34 +161,52 @@ module Fastlane
 
         # Below a few examples
         [
-          FastlaneCore::ConfigItem.new(key: :match,
-                                       description: "Match tag of last version. Uses for git describe as a match parameter. See git describe man for more info", # a short description of this parameter
-                                       verify_block: proc do |value|
-                                          UI.user_error!("No match for AnalyzeCommitsAction given, pass using `match: 'expr'`") unless (value and not value.empty?)
-                                          # UI.user_error!("Couldn't find file at path '#{value}'") unless File.exist?(value)
-                                       end),
-          FastlaneCore::ConfigItem.new(key: :releases,
-                                      description: "Map types of commit to release (major, minor, patch)",
-                                      default_value: { fix: "patch", feat: "minor" },
-                                      type: Hash
-                                      ),
-          FastlaneCore::ConfigItem.new(key: :format, description: "What format do you want to use?", default_value: "markdown", optional: true),
-          FastlaneCore::ConfigItem.new(key: :display_author, description: "Display author of commit?", default_value: false, type: Boolean, optional: true),
-          FastlaneCore::ConfigItem.new(key: :title, description: "Title of release notes", optional: true),
-          FastlaneCore::ConfigItem.new(key: :sc, description: "Source Control Name", optional: true),
-          FastlaneCore::ConfigItem.new(key: :user_name, description: "User name for source control", optional: true),
-          FastlaneCore::ConfigItem.new(key: :project_name, description: "Project name for source control", optional: true),
-          FastlaneCore::ConfigItem.new(key: :repository_url, description: "Use as a link to repository", optional: true),
-          FastlaneCore::ConfigItem.new(key: :commit_url, description: "Use as a link to the commit", optional: true),
-          FastlaneCore::ConfigItem.new(key: :order, description: "Order of types", default_value: ["feat", "fix"], type: Array, optional: true),
+          FastlaneCore::ConfigItem.new(
+            key: :format,
+            description: "You can use either markdown or slack",
+            default_value: "markdown",
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :title,
+            description: "Title of release notes",
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :commit_url,
+            description: "Uses as a link to the commit",
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :order,
+            description: "You can change order of groups in release notes",
+            default_value: ["feat", "fix", "refactor", "perf", "chore", "test", "docs", "no_type"],
+            type: Array,
+            optional: true
+          ),
           FastlaneCore::ConfigItem.new(
             key: :sections,
             description: "Map type to section title",
-            default_value: {feat: "Features", fix: "Bug fixes"},
+            default_value: {
+              feat: "Features",
+              fix: "Bug fixes",
+              refactor: "Code refactoring",
+              perf: "Performance improving",
+              chore: "Building system",
+              test: "Testing",
+              docs: "Documentation",
+              no_type: "Rest work",
+            },
             type: Hash,
             optional: true
           ),
-
+          FastlaneCore::ConfigItem.new(
+            key: :display_author,
+            description: "Wheter or not you want to display author of commit",
+            default_value: false,
+            type: Boolean,
+            optional: true
+          ),
         ]
       end
 
@@ -186,12 +214,13 @@ module Fastlane
         # Define the shared values you are going to provide
         # Example
         [
-          ['CONVENTIONAL_CHANGELOG_CUSTOM_VALUE', 'A description of what this value contains']
+          ['CONVENTIONAL_CHANGELOG', 'Generated conventional changelog']
         ]
       end
 
       def self.return_value
         # If your method provides a return value, you can describe here what it does
+        "Returns generated release notes as a string"
       end
 
       def self.authors
