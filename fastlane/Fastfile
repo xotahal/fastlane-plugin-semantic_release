@@ -25,7 +25,7 @@ lane :publish do
   set_github_release(
     repository_name: "xotahal/fastlane-plugin-semantic_release",
     api_token: ENV["GITHUB_TOKEN"],
-    name: "#{next_version}",
+    name: next_version,
     tag_name: "v#{next_version}",
     description: notes,
     commitish: "master",
