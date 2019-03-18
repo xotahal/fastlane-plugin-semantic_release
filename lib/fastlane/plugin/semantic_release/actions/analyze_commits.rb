@@ -14,7 +14,6 @@ module Fastlane
       RELEASE_NEXT_VERSION = :RELEASE_NEXT_VERSION
     end
 
-
     class AnalyzeCommitsAction < Action
       def self.run(params)
         # Last version tag name
@@ -26,81 +25,81 @@ module Fastlane
         version = '0.0.0'
 
         begin
-          #Try to find the tag
+          # Try to find the tag
           command = "git describe --tags --match=#{params[:match]}"
           tag = Actions.sh(command, log: false)
         rescue
           UI.message("Tag was not found for match pattern - #{params[:match]}")
         end
 
-        if tag.empty? then
+        if tag.empty?
           UI.message("First commit of the branch is taken as a begining of next release")
           # If there is no tag found we taking the first commit of current branch
           hash = Actions.sh('git rev-list --max-parents=0 HEAD', log: false).chomp
         else
           # Tag's format is v2.3.4-5-g7685948
           # See git describe man page for more info
-          tagName = tag.split('-')[0].strip()
-          version = tagName.match(params[:tag_version_match])[0]
+          tag_name = tag.split('-')[0].strip
+          version = tag_name.match(params[:tag_version_match])[0]
           # Get a hash of last version tag
-          command = "git rev-list -n 1 #{tagName}"
+          command = "git rev-list -n 1 #{tag_name}"
           hash = Actions.sh(command, log: false).chomp
 
-          UI.message("Found a tag #{tagName} associated with version #{version}")
+          UI.message("Found a tag #{tag_name} associated with version #{version}")
         end
 
         # converts last version string to the int numbers
-        nextMajor = (version.split('.')[0] || 0).to_i
-        nextMinor = (version.split('.')[1] || 0).to_i
-        nextPatch = (version.split('.')[2] || 0).to_i
+        next_major = (version.split('.')[0] || 0).to_i
+        next_minor = (version.split('.')[1] || 0).to_i
+        next_patch = (version.split('.')[2] || 0).to_i
 
         # Get commits log between last version and head
         commits = Helper::SemanticReleaseHelper.git_log('%s', hash)
-        splitted = commits.split("\n");
+        splitted = commits.split("\n")
 
         UI.message("Found #{splitted.length} commits since last release")
         releases = params[:releases]
 
-        for line in splitted
+        splitted.each do |line|
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
           type = line.split(":")[0]
           release = releases[type.to_sym]
 
-          if release == "patch" then
-            nextPatch = nextPatch + 1
-          elsif release == "minor" then
-            nextMinor = nextMinor + 1
-            nextPatch = 0
-          elsif release == "major" then
-            nextMajor = nextMajor + 1
-            nextMinor = 0
-            nextPatch = 0
+          if release == "patch"
+            next_patch += 1
+          elsif release == "minor"
+            next_minor += 1
+            next_patch = 0
+          elsif release == "major"
+            next_major += 1
+            next_minor = 0
+            next_patch = 0
           end
 
-          nextVersion = "#{nextMajor}.#{nextMinor}.#{nextPatch}"
-          UI.message("#{nextVersion}: #{line}")
+          next_version = "#{next_major}.#{next_minor}.#{next_patch}"
+          UI.message("#{next_version}: #{line}")
         end
 
-        nextVersion = "#{nextMajor}.#{nextMinor}.#{nextPatch}"
+        next_version = "#{next_major}.#{next_minor}.#{next_patch}"
 
-        isReleaseable = Helper::SemanticReleaseHelper.semver_gt(nextVersion, version)
+        is_releaseable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
 
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
-        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = isReleaseable
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_releaseable
         # Last release analysis
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
         Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
         # Next release analysis
-        Actions.lane_context[SharedValues::RELEASE_NEXT_MAJOR_VERSION] = nextMajor
-        Actions.lane_context[SharedValues::RELEASE_NEXT_MINOR_VERSION] = nextMinor
-        Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = nextPatch
-        Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = nextVersion
+        Actions.lane_context[SharedValues::RELEASE_NEXT_MAJOR_VERSION] = next_major
+        Actions.lane_context[SharedValues::RELEASE_NEXT_MINOR_VERSION] = next_minor
+        Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = next_patch
+        Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = next_version
 
-        successMessage = "Next version (#{nextVersion}) is higher than last version (#{version}). This version should be released."
-        UI.success(successMessage) if isReleaseable
+        success_message = "Next version (#{next_version}) is higher than last version (#{version}). This version should be released."
+        UI.success(success_message) if is_releaseable
 
-        isReleaseable
+        is_releaseable
       end
 
       #####################################################
@@ -124,20 +123,20 @@ module Fastlane
             key: :match,
             description: "Match parameter of git describe. See man page of git describe for more info",
             verify_block: proc do |value|
-                UI.user_error!("No match for analyze_commits action given, pass using `match: 'expr'`") unless (value and not value.empty?)
+              UI.user_error!("No match for analyze_commits action given, pass using `match: 'expr'`") unless value && !value.empty?
             end
           ),
           FastlaneCore::ConfigItem.new(
             key: :releases,
             description: "Map types of commit to release (major, minor, patch)",
             default_value: { fix: "patch", feat: "minor" },
-            type: Hash,
+            type: Hash
           ),
           FastlaneCore::ConfigItem.new(
             key: :tag_version_match,
             description: "To parse version number from tag name",
-            default_value: '\d+\.\d+\.\d+',
-          ),
+            default_value: '\d+\.\d+\.\d+'
+          )
         ]
       end
 
@@ -152,7 +151,7 @@ module Fastlane
           ['RELEASE_NEXT_MAJOR_VERSION', 'Major number of the next version'],
           ['RELEASE_NEXT_MINOR_VERSION', 'Minor number of the next version'],
           ['RELEASE_NEXT_PATCH_VERSION', 'Patch number of the next version'],
-          ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)'],
+          ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)']
         ]
       end
 

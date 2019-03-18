@@ -13,31 +13,30 @@ module Fastlane
 
         # If analyze commits action was not run there will be no version in shared
         # values. We need to run the action to get next version number
-        if !analyzed then
+        unless analyzed
           UI.user_error!("Release hasn't been analyzed yet. Run analyze_commits action first please.")
           # version = other_action.analyze_commits(match: params[:match])
         end
 
-        lastTagHas = lane_context[SharedValues::RELEASE_LAST_TAG_HASH]
+        last_tag_hash = lane_context[SharedValues::RELEASE_LAST_TAG_HASH]
         version = lane_context[SharedValues::RELEASE_NEXT_VERSION]
 
         # Get commits log between last version and head
-        commits = Helper::SemanticReleaseHelper.git_log('%s|%H|%h|%an|%at', lastTagHas)
-        parsed = parseCommits(commits.split("\n"))
+        commits = Helper::SemanticReleaseHelper.git_log('%s|%H|%h|%an|%at', last_tag_hash)
+        parsed = parse_commits(commits.split("\n"))
 
+        commit_url = params[:commit_url]
 
-        commitUrl = params[:commit_url]
-
-        if params[:format] == 'markdown' then
-          result = markdown(parsed, version, commitUrl, params)
+        if params[:format] == 'markdown'
+          result = markdown(parsed, version, commit_url, params)
         elsif params[:format] == 'slack'
-          result = slack(parsed, version, commitUrl, params)
+          result = slack(parsed, version, commit_url, params)
         end
 
         result
       end
 
-      def self.markdown(commits, version, commitUrl, params)
+      def self.markdown(commits, version, commit_url, params)
         sections = params[:sections]
 
         # Begining of release notes
@@ -45,96 +44,94 @@ module Fastlane
         result += "\n"
         result += "(#{Date.today})"
 
-        for type in params[:order]
+        params[:order].each do |type|
           # write section only if there is at least one commit
-          next if !commits.any? { |commit| commit[:type] == type }
+          next if commits.none? { |commit| commit[:type] == type }
 
           result += "\n\n"
           result += "### #{sections[type.to_sym]}"
           result += "\n"
 
-          for commit in commits
-            if commit[:type] == type then
-              authorName = commit[:authorName]
-              shortHash = commit[:shortHash]
-              hash = commit[:hash]
-              link = "#{commitUrl}/#{hash}"
+          commits.each do |commit|
+            next if commit[:type] != type
 
-              result += "- #{commit[:subject]} ([#{shortHash}](#{link}))"
+            author_name = commit[:author_name]
+            short_hash = commit[:short_hash]
+            hash = commit[:hash]
+            link = "#{commit_url}/#{hash}"
 
-              if params[:display_author] then
-                result += "- #{authorName}"
-              end
+            result += "- #{commit[:subject]} ([#{short_hash}](#{link}))"
 
-              result += "\n"
+            if params[:display_author]
+              result += "- #{author_name}"
             end
+
+            result += "\n"
           end
         end
-
 
         result
       end
 
-      def self.slack(commits, version, commitUrl, params)
+      def self.slack(commits, version, commit_url, params)
         sections = params[:sections]
 
         # Begining of release notes
         result = "*#{version} #{params[:title]}* (#{Date.today})"
         result += "\n"
 
-        for type in params[:order]
+        params[:order].each do |type|
           # write section only if there is at least one commit
-          next if !commits.any? { |commit| commit[:type] == type }
+          next if commits.none? { |commit| commit[:type] == type }
 
           result += "\n\n"
           result += "*#{sections[type.to_sym]}*"
           result += "\n"
 
-          for commit in commits
-            if commit[:type] == type then
-              authorName = commit[:authorName]
-              shortHash = commit[:shortHash]
-              hash = commit[:hash]
-              link = "#{commitUrl}/#{hash}"
+          commits.each do |commit|
+            next if commit[:type] != type
 
-              result += "- #{commit[:subject]} (<#{link}|#{shortHash}>)"
+            author_name = commit[:author_name]
+            short_hash = commit[:short_hash]
+            hash = commit[:hash]
+            link = "#{commit_url}/#{hash}"
 
-              if params[:display_author] then
-                result += "- #{authorName}"
-              end
+            result += "- #{commit[:subject]} (<#{link}|#{short_hash}>)"
 
-              result += "\n"
+            if params[:display_author]
+              result += "- #{author_name}"
             end
+
+            result += "\n"
           end
         end
-
 
         result
       end
 
-      def self.parseCommits(commits)
+      def self.parse_commits(commits)
         parsed = []
         # %s|%H|%h|%an|%at
-        for line in commits
+        commits.each do |line|
           splitted = line.split("|")
 
-          subjectSplitted = splitted[0].split(":")
+          subject_splitted = splitted[0].split(":")
 
-          if subjectSplitted.length > 1 then
-            type = subjectSplitted[0]
-            subject = subjectSplitted[1]
+          if subject_splitted.length > 1
+            type = subject_splitted[0]
+            subject = subject_splitted[1]
           else
             type = 'no_type'
-            subject = subjectSplitted[0]
+            subject = subject_splitted[0]
           end
 
           commit = {
-            type: type.strip(),
-            subject: subject.strip(),
+            type: type.strip,
+            subject: subject.strip,
             hash: splitted[1],
-            shortHash: splitted[2],
-            authorName: splitted[3],
-            commitDate: splitted[4],
+            short_hash: splitted[2],
+            author_name: splitted[3],
+            commitDate: splitted[4]
           }
 
           parsed.push(commit)
@@ -142,7 +139,6 @@ module Fastlane
 
         parsed
       end
-
 
       #####################################################
       # @!group Documentation
@@ -195,7 +191,7 @@ module Fastlane
               chore: "Building system",
               test: "Testing",
               docs: "Documentation",
-              no_type: "Rest work",
+              no_type: "Rest work"
             },
             type: Hash,
             optional: true
@@ -206,14 +202,14 @@ module Fastlane
             default_value: false,
             type: Boolean,
             optional: true
-          ),
+          )
         ]
       end
 
       def self.output
         # Define the shared values you are going to provide
         # Example
-        [ ]
+        []
       end
 
       def self.return_value
