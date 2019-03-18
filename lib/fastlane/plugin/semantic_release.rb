@@ -1,5 +1,3 @@
-require 'fastlane/plugin/semantic_release/version'
-
 module Fastlane
   module SemanticRelease
     # Return all .rb files inside the "actions" and "helper" directory
