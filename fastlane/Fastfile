@@ -5,9 +5,9 @@ lane :test do
 end
 
 lane :publish do
-  analyze_commits(match: 'v*')
+  is_releasable = analyze_commits(match: 'v*')
 
-  # next unless is_releasable
+  next unless is_releasable
 
   next_version = lane_context[SharedValues::RELEASE_NEXT_VERSION]
   # generates release notes for this version
@@ -25,7 +25,7 @@ lane :publish do
   tag = "v#{next_version}"
 
   sh("rake build")
-  # sh("gem push ../pkg/#{filename}")
+  sh("gem push ../pkg/#{filename}")
 
   add_git_tag(tag: tag)
   push_git_tags
