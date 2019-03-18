@@ -83,10 +83,10 @@ module Fastlane
 
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
 
-        is_releaseable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
+        is_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
 
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
-        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_releaseable
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_releasable
         # Last release analysis
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
         Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
@@ -97,9 +97,9 @@ module Fastlane
         Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = next_version
 
         success_message = "Next version (#{next_version}) is higher than last version (#{version}). This version should be released."
-        UI.success(success_message) if is_releaseable
+        UI.success(success_message) if is_releasable
 
-        is_releaseable
+        is_releasable
       end
 
       #####################################################
