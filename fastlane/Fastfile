@@ -12,7 +12,7 @@ lane :publish do
   next_version = lane_context[SharedValues::RELEASE_NEXT_VERSION]
   # generates release notes for this version
   notes = conventional_changelog(
-    order: ["feat", "fix"]
+    order: ["feat", "fix", "docs"]
   )
 
   # Put down the next version - it will be taken in gemspec then
