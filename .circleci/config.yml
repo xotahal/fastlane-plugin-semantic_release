@@ -4,7 +4,7 @@
 #
 version: 2
 jobs:
-  build:
+  test:
     docker:
       # specify the version you desire here
        - image: circleci/ruby:2.4.2
@@ -41,3 +41,57 @@ jobs:
       - store_artifacts:
           path: ~/repo/test-results
           destination: test-results
+
+  publish:
+    docker:
+      # specify the version you desire here
+       - image: circleci/ruby:2.4.2
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "Gemfile" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: install dependencies
+          command: bundle check || bundle install --jobs=4 --retry=3 --path vendor/bundle
+
+      - save_cache:
+          paths:
+            - ./vendor
+          key: v1-dependencies-{{ checksum "Gemfile" }}
+
+      # run tests!
+      - run:
+          name: run tests
+          command: bundle exec rake
+
+      - run:
+          name: publish
+          command: bundle exec fastlane publish
+
+workflows:
+  version: 2
+
+  tests:
+    jobs:
+      - test:
+          filters:
+            branches:
+              ignore:
+                - 'master'
+
+  deploy:
+    jobs:
+      - publish:
+          filters:
+            branches:
+              only:
+                - 'master'

@@ -1,3 +1,34 @@
 lane :test do
-  semantic_release
+  analyze_commits(match: 'v*')
+  notes = conventional_changelog
+  puts(notes)
+end
+
+lane :publish do
+  is_releasable = analyze_commits(match: 'v*')
+
+  next unless is_releasable
+
+  next_version = lane_context[SharedValues::RELEASE_NEXT_VERSION]
+  # generates release notes for this version
+  notes = conventional_changelog
+
+  # Put down the next version - it will be taken in gemspec then
+  # see .gemspec and version.rb
+  code = "module Fastlane module SemanticRelease VERSION=\"#{next_version}\" end end"
+  filepath = "../lib/fastlane/plugin/semantic_release/version.rb"
+  sh("echo '#{code}' > #{filepath}")
+
+  sh("rake build")
+  sh("rake release")
+
+  set_github_release(
+    repository_name: "xotahal/fastlane-plugin-semantic_release",
+    api_token: ENV["GITHUB_TOKEN"],
+    name: "#{next_version}",
+    tag_name: "v#{next_version}",
+    description: notes,
+    commitish: "master",
+    upload_assets: ["./pkg/fastlane-plugin-semantic_release-#{next_version}.gem"]
+  )
 end
