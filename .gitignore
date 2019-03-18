@@ -1,9 +1,6 @@
 *.gem
 Gemfile.lock
 
-## generated automatically
-lib/fastlane/plugin/semantic_release/version.rb
-
 ## Documentation cache and generated files:
 /.yardoc/
 /_yardoc/

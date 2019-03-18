@@ -20,7 +20,8 @@ lane :publish do
   sh("echo '#{code}' > #{filepath}")
 
   sh("rake build")
-  sh("rake release")
+  sh("release:source_control_push")
+  sh("release:rubygem_push")
 
   set_github_release(
     repository_name: "xotahal/fastlane-plugin-semantic_release",
