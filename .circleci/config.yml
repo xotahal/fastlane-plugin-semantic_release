@@ -75,7 +75,13 @@ jobs:
 
       - run:
           name: publish
-          command: bundle exec fastlane publish
+          command: |
+            mkdir ~/.gem
+            cat .circleci/gem_credentials | sed -e "s/__RUBYGEMS_API_KEY__/${RUBYGEMS_API_KEY}/" > ~/.gem/credentials
+            chmod 0600 ~/.gem/credentials
+            bundle exec fastlane publish
+            shred -u ~/.gem/credentials
+          
 
 workflows:
   version: 2
