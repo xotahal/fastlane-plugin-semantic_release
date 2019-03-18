@@ -7,7 +7,10 @@ end
 lane :publish do
   is_releasable = analyze_commits(match: 'v*')
 
-  next unless is_releasable
+  unless is_releasable
+    UI.message('Nothing to release')
+    next
+  end
 
   next_version = lane_context[SharedValues::RELEASE_NEXT_VERSION]
   # generates release notes for this version
