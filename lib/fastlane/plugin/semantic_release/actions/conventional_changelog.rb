@@ -39,10 +39,12 @@ module Fastlane
       def self.markdown(commits, version, commit_url, params)
         sections = params[:sections]
 
+        title = version
+        title += " #{params[:title]}" if params[:title]
+
         # Begining of release notes
-        result = "# #{version} #{params[:title]}"
+        result = "##{title} (#{Date.today})"
         result += "\n"
-        result += "(#{Date.today})"
 
         params[:order].each do |type|
           # write section only if there is at least one commit
