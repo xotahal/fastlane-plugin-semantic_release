@@ -68,7 +68,6 @@ jobs:
             - ./vendor
           key: v1-dependencies-{{ checksum "Gemfile" }}
 
-      # run tests!
       - run:
           name: run tests
           command: bundle exec rake
@@ -76,12 +75,14 @@ jobs:
       - run:
           name: publish
           command: |
+            git config --global user.email "$GIT_AUTHOR_EMAIL"
+            git config --global user.name "$GIT_AUTHOR_NAME"
             mkdir ~/.gem
             cat .circleci/gem_credentials | sed -e "s/__RUBYGEMS_API_KEY__/${RUBYGEMS_API_KEY}/" > ~/.gem/credentials
             chmod 0600 ~/.gem/credentials
             bundle exec fastlane publish
             shred -u ~/.gem/credentials
-          
+
 
 workflows:
   version: 2
