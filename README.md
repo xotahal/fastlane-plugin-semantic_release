@@ -2,21 +2,23 @@
 
 [![CircleCI](https://circleci.com/gh/xotahal/fastlane-plugin-semantic_release.svg?style=svg)](https://circleci.com/gh/xotahal/fastlane-plugin-semantic_release) [![License](https://img.shields.io/github/license/SiarheiFedartsou/fastlane-plugin-versioning.svg)](https://github.com/SiarheiFedartsou/fastlane-plugin-versioning/blob/master/LICENSE) [![Gem Version](https://badge.fury.io/rb/fastlane-plugin-semantic_release.svg)](https://badge.fury.io/rb/fastlane-plugin-semantic_release) [![fastlane Plugin Badge](https://rawcdn.githack.com/fastlane/fastlane/master/fastlane/assets/plugin-badge.svg)](https://rubygems.org/gems/fastlane-plugin-versioning)
 
-### Getting Started
+## Getting Started
 
 ```bash
 fastlane add_plugin semantic_release
 ```
 
+## About
+
+Automated version managment and generator of release notes. Inspired by [semantic-release](https://github.com/semantic-release/semantic-release) for npm packages. Based on [conventional commits](https://www.conventionalcommits.org/).
+
 ### Articles
 
 [Semantic Release for Fastlane](https://medium.com/@xotahal/semantic-release-for-fastlane-781df4cf5888?source=friends_link&sk=5c02e32daca7a68539e27e0e1bac1092) @ Medium - By Jiri Otahal
 
-### About
+## Available Actions
 
-Automated version managment and generator of release notes. Inspired by [semantic-release](https://github.com/semantic-release/semantic-release) for npm packages. Based on [conventional commits](https://www.conventionalcommits.org/).
-
-#### conventional_changelog
+### conventional_changelog
 
 - parses all commits since last version
 - group those commits by their type (fix, feat, docs, refactor, chore, etc)
@@ -28,7 +30,7 @@ notes = conventional_changelog(format: 'slack', title: 'Android Alpha')
 
 <img src="https://raw.githubusercontent.com/xotahal/fastlane-plugin-semantic_release/master/docs/Changelog.png" />
 
-#### analyze_commits
+### analyze_commits
 
 - analyzes your git history
 - finds last tag on current branch (for example ios/beta/1.3.2)
@@ -36,15 +38,11 @@ notes = conventional_changelog(format: 'slack', title: 'Android Alpha')
 - gets all commits since this tag
 - analyzes subject of every single commit and increases version number if there is a need (check conventional commit rules)
 - if next version number is higher then last version number it will recommend you to release this version
-
-Please run `fastlane action analyze_commits` to see all documentation in your command line.
-
 ```
 isReleasable = analyze_commits(match: 'ios/beta*')
 ```
 
-It leave these variables in lane_context. You can get them by `lane_context[SharedValues::RELEASE_NEXT_VERSION]` - for example.
-
+It provides these variables in lane_context.
 ```
 ['RELEASE_ANALYZED', 'True if commits were analyzed.'],
 ['RELEASE_IS_NEXT_VERSION_HIGHER', 'True if next version is higher then last version'],
@@ -55,6 +53,8 @@ It leave these variables in lane_context. You can get them by `lane_context[Shar
 ['RELEASE_NEXT_PATCH_VERSION', 'Patch number of the next version'],
 ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)'],
 ```
+`next_version = lane_context[SharedValues::RELEASE_NEXT_VERSION]`
+
 
 <img src="https://raw.githubusercontent.com/xotahal/fastlane-plugin-semantic_release/master/docs/Analyze.png" />
 
