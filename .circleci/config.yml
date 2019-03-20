@@ -12,6 +12,7 @@ jobs:
     working_directory: ~/repo
 
     steps:
+      - add_ssh_keys
       - checkout
 
       # Download and cache dependencies
@@ -50,6 +51,7 @@ jobs:
     working_directory: ~/repo
 
     steps:
+      - add_ssh_keys
       - checkout
 
       # Download and cache dependencies
