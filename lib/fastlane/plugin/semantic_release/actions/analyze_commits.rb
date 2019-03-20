@@ -40,7 +40,13 @@ module Fastlane
           # Tag's format is v2.3.4-5-g7685948
           # See git describe man page for more info
           tag_name = tag.split('-')[0].strip
-          version = tag_name.match(params[:tag_version_match])[0]
+          parsed_version = tag_name.match(params[:tag_version_match])
+
+          if parsed_version.nil?
+            UI.user_error!("Error while parsing version from tag #{tag_name} by using tag_version_match - #{params[:tag_version_match]}. Please check if the tag contains version as you expect and if you are using single brackets for tag_version_match parameter.")
+          end
+
+          version = parsed_version[0]
           # Get a hash of last version tag
           command = "git rev-list -n 1 #{tag_name}"
           hash = Actions.sh(command, log: false).chomp
