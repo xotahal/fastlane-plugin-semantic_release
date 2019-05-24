@@ -69,7 +69,7 @@ module Fastlane
         splitted.each do |line|
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
-          type = line.split(":")[0]
+          type = line.split(":").reject(&:empty?)[0]
           release = releases[type.to_sym]
 
           if release == "patch"
