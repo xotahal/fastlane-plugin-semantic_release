@@ -29,39 +29,8 @@ module Fastlane
       end
 
       def self.get_commits_from_hash(params)
-        commits = Helper::SemanticReleaseHelper.git_log('%s', params[:hash])
+        commits = Helper::SemanticReleaseHelper.git_log('%s|%b', params[:hash])
         commits.split("\n")
-      end
-
-      def self.parse_commit(params)
-        commit = params[:commit]
-        releases = params[:releases]
-        pattern = /(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?!?\: /
-        breaking_change_pattern = /BREAKING CHANGES?: (.*)/
-
-        matched = commit.match(pattern)
-        result = {
-          is_valid: false
-        }
-
-        unless matched.nil?
-          type = matched[1]
-          scope = matched[3]
-
-          result[:is_valid] = true
-          result[:type] = type
-          result[:scope] = scope
-          result[:release] = releases[type.to_sym]
-
-          breaking_change_matched = commit.match(breaking_change_pattern)
-
-          unless breaking_change_matched.nil?
-            result[:is_breaking_change] = true
-            result[:breaking_change] = breaking_change_matched[1]
-          end
-        end
-
-        result
       end
 
       def self.run(params)
@@ -108,7 +77,11 @@ module Fastlane
         splitted.each do |line|
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
-          commit = parse_commit(commit: line, releases: releases)
+          commit = Helper::SemanticReleaseHelper.parse_commit(
+            commit_subject: line.split("|")[0],
+            commit_body: line.split("|")[1],
+            releases: releases
+          )
 
           if commit[:release] == "major" || commit[:is_breaking_change]
             next_major += 1

@@ -7,6 +7,11 @@ module Fastlane
     end
 
     class ConventionalChangelogAction < Action
+      def self.get_commits_from_hash(params)
+        commits = Helper::SemanticReleaseHelper.git_log('%s%b|%H|%h|%an|%at', params[:hash])
+        commits.split("\n")
+      end
+
       def self.run(params)
         # Get next version number from shared values
         analyzed = lane_context[SharedValues::RELEASE_ANALYZED]
@@ -22,8 +27,8 @@ module Fastlane
         version = lane_context[SharedValues::RELEASE_NEXT_VERSION]
 
         # Get commits log between last version and head
-        commits = Helper::SemanticReleaseHelper.git_log('%s|%H|%h|%an|%at', last_tag_hash)
-        parsed = parse_commits(commits.split("\n"))
+        commits = get_commits_from_hash(hash: last_tag_hash)
+        parsed = parse_commits(commits)
 
         commit_url = params[:commit_url]
 
@@ -55,14 +60,43 @@ module Fastlane
           result += "\n"
 
           commits.each do |commit|
-            next if commit[:type] != type
+            next if commit[:type] != type || commit[:is_merge]
 
             author_name = commit[:author_name]
             short_hash = commit[:short_hash]
             hash = commit[:hash]
             link = "#{commit_url}/#{hash}"
 
-            result += "- #{commit[:subject]} ([#{short_hash}](#{link}))"
+            result += "-"
+
+            unless commit[:scope].nil?
+              result += " **#{commit[:scope]}:**"
+            end
+
+            result += " #{commit[:subject]} ([#{short_hash}](#{link}))"
+
+            if params[:display_author]
+              result += "- #{author_name}"
+            end
+
+            result += "\n"
+          end
+        end
+
+        if commits.any? { |commit| commit[:is_breaking_change] == true }
+          result += "\n\n"
+          result += "### BREAKING CHANGES"
+          result += "\n"
+
+          commits.each do |commit|
+            next unless commit[:is_breaking_change]
+
+            author_name = commit[:author_name]
+            short_hash = commit[:short_hash]
+            hash = commit[:hash]
+            link = "#{commit_url}/#{hash}"
+
+            result += "- #{commit[:breaking_change]} ([#{short_hash}](#{link}))"
 
             if params[:display_author]
               result += "- #{author_name}"
@@ -91,14 +125,43 @@ module Fastlane
           result += "\n"
 
           commits.each do |commit|
-            next if commit[:type] != type
+            next if commit[:type] != type || commit[:is_merge]
 
             author_name = commit[:author_name]
             short_hash = commit[:short_hash]
             hash = commit[:hash]
             link = "#{commit_url}/#{hash}"
 
-            result += "- #{commit[:subject]} (<#{link}|#{short_hash}>)"
+            result += "-"
+
+            unless commit[:scope].nil?
+              result += " *#{commit[:scope]}:*"
+            end
+
+            result += " #{commit[:subject]} (<#{link}|#{short_hash}>)"
+
+            if params[:display_author]
+              result += "- #{author_name}"
+            end
+
+            result += "\n"
+          end
+        end
+
+        if commits.any? { |commit| commit[:is_breaking_change] == true }
+          result += "\n\n"
+          result += "*BREAKING CHANGES*"
+          result += "\n"
+
+          commits.each do |commit|
+            next unless commit[:is_breaking_change]
+
+            author_name = commit[:author_name]
+            short_hash = commit[:short_hash]
+            hash = commit[:hash]
+            link = "#{commit_url}/#{hash}"
+
+            result += "- #{commit[:breaking_change]} (<#{link}|#{short_hash}>)"
 
             if params[:display_author]
               result += "- #{author_name}"
@@ -113,28 +176,19 @@ module Fastlane
 
       def self.parse_commits(commits)
         parsed = []
-        # %s|%H|%h|%an|%at
+        # %s|%b|%H|%h|%an|%at
         commits.each do |line|
           splitted = line.split("|")
 
-          subject_splitted = splitted[0].split(":")
+          commit = Helper::SemanticReleaseHelper.parse_commit(
+            commit_subject: splitted[0],
+            commit_body: splitted[1]
+          )
 
-          if subject_splitted.length > 1
-            type = subject_splitted[0]
-            subject = subject_splitted[1]
-          else
-            type = 'no_type'
-            subject = subject_splitted[0]
-          end
-
-          commit = {
-            type: type.strip,
-            subject: subject.strip,
-            hash: splitted[1],
-            short_hash: splitted[2],
-            author_name: splitted[3],
-            commitDate: splitted[4]
-          }
+          commit[:hash] = splitted[2]
+          commit[:short_hash] = splitted[3]
+          commit[:author_name] = splitted[4]
+          commit[:commit_date] = splitted[5]
 
           parsed.push(commit)
         end

@@ -11,8 +11,8 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
 
     it "should increment fix and return true" do
       commits = [
-        "docs: ...",
-        "fix: ..."
+        "docs: ...|",
+        "fix: ...|"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
@@ -23,9 +23,9 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
 
     it "should increment feat and fix and return true" do
       commits = [
-        "docs: ...",
-        "feat: ...",
-        "fix: ..."
+        "docs: ...|",
+        "feat: ...|",
+        "fix: ...|"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
@@ -36,9 +36,9 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
 
     it "should increment major change and return true" do
       commits = [
-        "docs: ...",
-        "feat: ...",
-        "fix: ... BREAKING CHANGE: Test"
+        "docs: ...|",
+        "feat: ...|",
+        "fix: ...|BREAKING CHANGE: Test"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
@@ -49,9 +49,9 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
 
     it "should correctly parse scopes" do
       commits = [
-        "docs(scope): ...",
-        "feat(test): ...",
-        "fix(test): ..."
+        "docs(scope): ...|",
+        "feat(test): ...|",
+        "fix(test): ...|"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
@@ -62,9 +62,9 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
 
     it "should return false since there is no change that would increase version" do
       commits = [
-        "docs: ...",
-        "chore: ...",
-        "refactor: ..."
+        "docs: ...|",
+        "chore: ...|",
+        "refactor: ...|"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
@@ -75,8 +75,8 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
 
     it "should return false since there is no change that would increase version" do
       commits = [
-        "Merge ...",
-        "Custom ..."
+        "Merge ...|",
+        "Custom ...|"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)

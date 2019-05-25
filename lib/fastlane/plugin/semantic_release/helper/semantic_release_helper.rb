@@ -13,6 +13,49 @@ module Fastlane
         Actions.sh(command, log: false).chomp
       end
 
+      def self.parse_commit(params)
+        commit_subject = params[:commit_subject]
+        commit_body = params[:commit_body]
+        releases = params[:releases]
+        pattern = /^(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?(!?)\: (.*)/
+        merge_pattern = /^Merge/
+        breaking_change_pattern = /BREAKING CHANGES?: (.*)/
+
+        matched = commit_subject.match(pattern)
+        result = {
+          is_valid: false,
+          subject: commit_subject,
+          is_merge: commit_subject.match?(merge_pattern),
+          type: 'no_type'
+        }
+
+        unless matched.nil?
+          type = matched[1]
+          scope = matched[3]
+
+          result[:is_valid] = true
+          result[:type] = type
+          result[:scope] = scope
+          result[:has_exclamation_mark] = matched[4] == '!'
+          result[:subject] = matched[5]
+
+          unless releases.nil?
+            result[:release] = releases[type.to_sym]
+          end
+
+          unless commit_body.nil?
+            breaking_change_matched = commit_body.match(breaking_change_pattern)
+
+            unless breaking_change_matched.nil?
+              result[:is_breaking_change] = true
+              result[:breaking_change] = breaking_change_matched[1]
+            end
+          end
+        end
+
+        result
+      end
+
       def self.semver_gt(first, second)
         first_major = (first.split('.')[0] || 0).to_i
         first_minor = (first.split('.')[1] || 0).to_i
