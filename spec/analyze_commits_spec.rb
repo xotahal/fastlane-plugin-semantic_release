@@ -38,13 +38,13 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       commits = [
         "docs: ...",
         "feat: ...",
-        "fix: ... BREAKING CHANGE"
+        "fix: ... BREAKING CHANGE: Test"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
 
       expect(execute_lane_test).to eq(true)
-      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.1")
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
     end
 
     it "should correctly parse scopes" do
@@ -76,7 +76,7 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
     it "should return false since there is no change that would increase version" do
       commits = [
         "Merge ...",
-        "Custom ...",
+        "Custom ..."
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
@@ -84,7 +84,6 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       expect(execute_lane_test).to eq(false)
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.8")
     end
-
 
     after do
     end

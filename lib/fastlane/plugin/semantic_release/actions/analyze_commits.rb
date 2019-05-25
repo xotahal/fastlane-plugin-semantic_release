@@ -16,13 +16,11 @@ module Fastlane
 
     class AnalyzeCommitsAction < Action
       def self.get_last_tag(params)
-        begin
-          # Try to find the tag
-          command = "git describe --tags --match=#{params[:match]}"
-          Actions.sh(command, log: false)
-        rescue
-          UI.message("Tag was not found for match pattern - #{params[:match]}")
-        end
+        # Try to find the tag
+        command = "git describe --tags --match=#{params[:match]}"
+        Actions.sh(command, log: false)
+      rescue
+        UI.message("Tag was not found for match pattern - #{params[:match]}")
       end
 
       def self.get_last_tag_hash(params)
@@ -36,32 +34,37 @@ module Fastlane
       end
 
       def self.parse_commit(params)
-        commit = params[:commit];
-        releases = params[:releases];
+        commit = params[:commit]
+        releases = params[:releases]
         pattern = /(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?!?\: /
-        is_valid = false
+        breaking_change_pattern = /BREAKING CHANGES?: (.*)/
 
         matched = commit.match(pattern)
         result = {
           is_valid: false
         }
 
-        unless (matched.nil?)
+        unless matched.nil?
           type = matched[1]
           scope = matched[3]
 
           result[:is_valid] = true
           result[:type] = type
           result[:scope] = scope
-          result[:release] = releases[type.to_sym] 
+          result[:release] = releases[type.to_sym]
+
+          breaking_change_matched = commit.match(breaking_change_pattern)
+
+          unless breaking_change_matched.nil?
+            result[:is_breaking_change] = true
+            result[:breaking_change] = breaking_change_matched[1]
+          end
         end
 
         result
       end
 
       def self.run(params)
-        # Last version tag name
-        tag = ""
         # Hash of the commit where is the last version
         # If the tag is not found we are taking HEAD as reference
         hash = 'HEAD'
@@ -107,15 +110,15 @@ module Fastlane
           # type: subject (fix: app crash - for example)
           commit = parse_commit(commit: line, releases: releases)
 
-          if commit[:release] == "patch"
-            next_patch += 1
-          elsif commit[:release] == "minor"
-            next_minor += 1
-            next_patch = 0
-          elsif commit[:release] == "major"
+          if commit[:release] == "major" || commit[:is_breaking_change]
             next_major += 1
             next_minor = 0
             next_patch = 0
+          elsif commit[:release] == "minor"
+            next_minor += 1
+            next_patch = 0
+          elsif commit[:release] == "patch"
+            next_patch += 1
           end
 
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
