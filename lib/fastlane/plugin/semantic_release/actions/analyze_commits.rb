@@ -15,6 +15,50 @@ module Fastlane
     end
 
     class AnalyzeCommitsAction < Action
+      def self.get_last_tag(params)
+        begin
+          # Try to find the tag
+          command = "git describe --tags --match=#{params[:match]}"
+          Actions.sh(command, log: false)
+        rescue
+          UI.message("Tag was not found for match pattern - #{params[:match]}")
+        end
+      end
+
+      def self.get_last_tag_hash(params)
+        command = "git rev-list -n 1 #{params[:tag_name]}"
+        Actions.sh(command, log: false).chomp
+      end
+
+      def self.get_commits_from_hash(params)
+        commits = Helper::SemanticReleaseHelper.git_log('%s', params[:hash])
+        commits.split("\n")
+      end
+
+      def self.parse_commit(params)
+        commit = params[:commit];
+        releases = params[:releases];
+        pattern = /(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?!?\: /
+        is_valid = false
+
+        matched = commit.match(pattern)
+        result = {
+          is_valid: false
+        }
+
+        unless (matched.nil?)
+          type = matched[1]
+          scope = matched[3]
+
+          result[:is_valid] = true
+          result[:type] = type
+          result[:scope] = scope
+          result[:release] = releases[type.to_sym] 
+        end
+
+        result
+      end
+
       def self.run(params)
         # Last version tag name
         tag = ""
@@ -24,13 +68,7 @@ module Fastlane
         # Default last version
         version = '0.0.0'
 
-        begin
-          # Try to find the tag
-          command = "git describe --tags --match=#{params[:match]}"
-          tag = Actions.sh(command, log: false)
-        rescue
-          UI.message("Tag was not found for match pattern - #{params[:match]}")
-        end
+        tag = get_last_tag(match: params[:match])
 
         if tag.empty?
           UI.message("First commit of the branch is taken as a begining of next release")
@@ -48,8 +86,7 @@ module Fastlane
 
           version = parsed_version[0]
           # Get a hash of last version tag
-          command = "git rev-list -n 1 #{tag_name}"
-          hash = Actions.sh(command, log: false).chomp
+          hash = get_last_tag_hash(tag_name: tag_name)
 
           UI.message("Found a tag #{tag_name} associated with version #{version}")
         end
@@ -60,8 +97,7 @@ module Fastlane
         next_patch = (version.split('.')[2] || 0).to_i
 
         # Get commits log between last version and head
-        commits = Helper::SemanticReleaseHelper.git_log('%s', hash)
-        splitted = commits.split("\n")
+        splitted = get_commits_from_hash(hash: hash)
 
         UI.message("Found #{splitted.length} commits since last release")
         releases = params[:releases]
@@ -69,15 +105,14 @@ module Fastlane
         splitted.each do |line|
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
-          type = line.split(":")[0]
-          release = releases[type.to_sym]
+          commit = parse_commit(commit: line, releases: releases)
 
-          if release == "patch"
+          if commit[:release] == "patch"
             next_patch += 1
-          elsif release == "minor"
+          elsif commit[:release] == "minor"
             next_minor += 1
             next_patch = 0
-          elsif release == "major"
+          elsif commit[:release] == "major"
             next_major += 1
             next_minor = 0
             next_patch = 0
