@@ -21,6 +21,7 @@ module Fastlane
         Actions.sh(command, log: false)
       rescue
         UI.message("Tag was not found for match pattern - #{params[:match]}")
+        ''
       end
 
       def self.get_last_tag_hash(params)
