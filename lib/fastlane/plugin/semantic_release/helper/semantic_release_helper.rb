@@ -10,7 +10,7 @@ module Fastlane
       #
       def self.git_log(pretty, start)
         command = "git log --pretty='#{pretty}' --reverse #{start}..HEAD"
-        Actions.sh(command, log: true).chomp
+        Actions.sh(command, log: false).chomp
       end
 
       def self.parse_commit(params)
