@@ -14,7 +14,7 @@ module Fastlane
       end
 
       def self.parse_commit(params)
-        commit_subject = params[:commit_subject]
+        commit_subject = params[:commit_subject].strip
         commit_body = params[:commit_body]
         releases = params[:releases]
         pattern = /^(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?(!?)\: (.*)/
