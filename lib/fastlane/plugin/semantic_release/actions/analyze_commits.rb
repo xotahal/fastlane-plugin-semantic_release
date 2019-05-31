@@ -29,8 +29,8 @@ module Fastlane
       end
 
       def self.get_commits_from_hash(params)
-        commits = Helper::SemanticReleaseHelper.git_log('%s|%b', params[:hash])
-        commits.split("\n")
+        commits = Helper::SemanticReleaseHelper.git_log('%s|%b|>', params[:hash])
+        commits.split("|>")
       end
 
       def self.run(params)

@@ -85,6 +85,24 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.8")
     end
 
+    it "should deal with multiline comments" do
+      commits = [
+        "fix: add alpha deploy (#10)|* chore: test alpha build with CircleCI
+
+        * chore: skip code check for now
+
+        * chore: ignore gems dirs
+        ",
+        "chore: add alpha deploy triggered by alpha branch|",
+        "fix: fix navigation after user logs in|"
+      ]
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+      expect(execute_lane_test).to eq(true)
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.10")
+    end
+
     after do
     end
   end
