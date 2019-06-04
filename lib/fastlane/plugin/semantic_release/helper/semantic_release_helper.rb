@@ -18,14 +18,13 @@ module Fastlane
         commit_body = params[:commit_body]
         releases = params[:releases]
         pattern = /^(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?(!?)\: (.*)/
-        merge_pattern = /^Merge/
         breaking_change_pattern = /BREAKING CHANGES?: (.*)/
 
         matched = commit_subject.match(pattern)
         result = {
           is_valid: false,
           subject: commit_subject,
-          is_merge: commit_subject.match?(merge_pattern),
+          is_merge: !(commit_subject =~ /^Merge/).nil?,
           type: 'no_type'
         }
 
