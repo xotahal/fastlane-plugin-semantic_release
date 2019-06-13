@@ -25,7 +25,7 @@ module Fastlane
       end
 
       def self.get_last_tag_hash(params)
-        command = "git rev-list -n 1 #{params[:tag_name]}"
+        command = "git rev-list -n 1 refs/tags/#{params[:tag_name]}"
         Actions.sh(command, log: false).chomp
       end
 
