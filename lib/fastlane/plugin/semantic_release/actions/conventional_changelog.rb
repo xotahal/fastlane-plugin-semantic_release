@@ -48,7 +48,7 @@ module Fastlane
         title += " #{params[:title]}" if params[:title]
 
         # Begining of release notes
-        result = "##{title} (#{Date.today})"
+        result = "# #{title} (#{Date.today})"
         result += "\n"
 
         params[:order].each do |type|
