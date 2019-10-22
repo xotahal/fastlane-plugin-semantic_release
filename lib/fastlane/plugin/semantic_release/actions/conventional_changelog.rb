@@ -221,7 +221,7 @@ module Fastlane
           ),
           FastlaneCore::ConfigItem.new(
             key: :title,
-            description: "Title of release notes",
+            description: "Title for release notes",
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
@@ -231,7 +231,7 @@ module Fastlane
           ),
           FastlaneCore::ConfigItem.new(
             key: :order,
-            description: "You can change order of groups in release notes",
+            description: "You can change the order of groups in release notes",
             default_value: ["feat", "fix", "refactor", "perf", "chore", "test", "docs", "no_type"],
             type: Array,
             optional: true
@@ -243,18 +243,18 @@ module Fastlane
               feat: "Features",
               fix: "Bug fixes",
               refactor: "Code refactoring",
-              perf: "Performance improving",
+              perf: "Performance improvements",
               chore: "Building system",
               test: "Testing",
               docs: "Documentation",
-              no_type: "Rest work"
+              no_type: "Other work"
             },
             type: Hash,
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
             key: :display_author,
-            description: "Wheter or not you want to display author of commit",
+            description: "Whether you want to show the author of the commit",
             default_value: false,
             type: Boolean,
             optional: true
