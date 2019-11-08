@@ -54,7 +54,7 @@ module Fastlane
           # write section only if there is at least one commit
           next if commits.none? { |commit| commit[:type] == type }
 
-          result += "\n\n"
+          result += "\n"
           result += style_text(sections[type.to_sym], format, "heading").to_s
           result += "\n"
 
@@ -85,7 +85,7 @@ module Fastlane
         end
 
         if commits.any? { |commit| commit[:is_breaking_change] == true }
-          result += "\n\n"
+          result += "\n"
           result += style_text("BREAKING CHANGES", format, "heading").to_s
           result += "\n"
 
