@@ -23,6 +23,14 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack', display_title: false ) end").runner.execute(:test)
     end
 
+    def execute_lane_test_no_links
+      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_links: false ) end").runner.execute(:test)
+    end
+
+    def execute_lane_test_no_links_slack
+      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack', display_links: false ) end").runner.execute(:test)
+    end
+
     it "should create sections in markdown format" do
       commits = [
         "docs: sub|body|long_hash|short_hash|Jiri Otahal|time",
@@ -147,6 +155,32 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       result = "*1.0.2 (2019-05-25)*\n\n*Bug fixes*\n- sub (</long_hash|short_hash>)\n\n*Other work*\n- Custom Merge... (</long_hash|short_hash>)"
 
       expect(execute_lane_test_slack).to eq(result)
+    end
+
+    it "should skip links if display_title is false in markdown format" do
+      commits = [
+        "docs: sub|body|long_hash|short_hash|Jiri Otahal|time",
+        "fix: sub||long_hash|short_hash|Jiri Otahal|time"
+      ]
+      allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+      allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+      result = "# 1.0.2 (2019-05-25)\n\n### Bug fixes\n- sub\n\n### Documentation\n- sub"
+
+      expect(execute_lane_test_no_links).to eq(result)
+    end
+
+    it "should skip links if display_title is false in Slack format" do
+      commits = [
+        "docs: sub|body|long_hash|short_hash|Jiri Otahal|time",
+        "fix: sub||long_hash|short_hash|Jiri Otahal|time"
+      ]
+      allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+      allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+      result = "*1.0.2 (2019-05-25)*\n\n*Bug fixes*\n- sub\n\n*Documentation*\n- sub"
+
+      expect(execute_lane_test_no_links_slack).to eq(result)
     end
 
     after do

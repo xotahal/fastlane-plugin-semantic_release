@@ -75,8 +75,12 @@ module Fastlane
               result += " #{formatted_text}"
             end
 
-            styled_link = style_link(short_hash, url, format).to_s
-            result += " #{commit[:subject]} (#{styled_link})"
+            result += " #{commit[:subject]}"
+
+            if params[:display_links] == true
+              styled_link = style_link(short_hash, url, format).to_s
+              result += " (#{styled_link})"
+            end
 
             if params[:display_author]
               result += "- #{author_name}"
@@ -94,13 +98,19 @@ module Fastlane
           commits.each do |commit|
             next unless commit[:is_breaking_change]
 
+            # TODO: This largely duplicates the section above, and could be refactored
             author_name = commit[:author_name]
             short_hash = commit[:short_hash]
             hash = commit[:hash]
             url = "#{commit_url}/#{hash}"
-            styled_link = style_link(short_hash, url, format).to_s
 
-            result += "- #{commit[:breaking_change]} (#{styled_link})"
+            result += "- #{commit[:breaking_change]}" # This is the only unique part of this loop
+
+            # TODO: This largely duplicates the section above, and could be refactored
+            if params[:display_links] == true
+              styled_link = style_link(short_hash, url, format).to_s
+              result += " (#{styled_link})"
+            end
 
             if params[:display_author]
               result += "- #{author_name}"
@@ -242,6 +252,13 @@ module Fastlane
           FastlaneCore::ConfigItem.new(
             key: :display_title,
             description: "Whether you want to hide the title/header with the version details at the top of the changelog",
+            default_value: true,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :display_links,
+            description: "Whether you want to display the links to commit IDs",
             default_value: true,
             type: Boolean,
             optional: true

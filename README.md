@@ -29,6 +29,7 @@ Available parameters:
 - `format: 'slack|markdown'` - defaults to `markdown` and formats the changelog for the destination you need
 - `title: 'My Title'` - is appended to the release notes title, "1.1.8 My Title (YYYY-MM-DD)"
 - `display_title: true|false` (defaults to true) - allows you to hide the entire first line of the changelog
+- `display_links: true|false` (defaults to true) - allows you to hide links to commits from your changelog
 - `commit_url: 'https://github.com/username/repository/commit'` - prepended to the commit ID to build usable links
 - View other options by searching for `available_options` in `conventional_changelog.rb`
 
