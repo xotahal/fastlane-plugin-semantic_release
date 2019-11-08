@@ -69,7 +69,11 @@ It provides these variables in `lane_context`.
 
 <img src="https://raw.githubusercontent.com/xotahal/fastlane-plugin-semantic_release/master/docs/Analyze.png" />
 
-### Questions
+## Tests
+
+To run the test suite (contained in `./spec`), call `bundle exec rake`
+
+## Questions
 
 If you need anything ping us on [twitter](http://bit.ly/t-xotahal).
 
