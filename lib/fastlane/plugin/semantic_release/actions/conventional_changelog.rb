@@ -41,20 +41,22 @@ module Fastlane
       def self.note_builder(format, commits, version, commit_url, params)
         sections = params[:sections]
 
-        title = version
-        title += " #{params[:title]}" if params[:title]
-        title += " (#{Date.today})"
+        result = ""
 
         # Begining of release notes
-        result = style_text(title, format, "title").to_s
+        if params[:display_title] == true
+          title = version
+          title += " #{params[:title]}" if params[:title]
+          title += " (#{Date.today})"
 
-        result += "\n"
+          result = style_text(title, format, "title").to_s
+          result += "\n\n"
+        end
 
         params[:order].each do |type|
           # write section only if there is at least one commit
           next if commits.none? { |commit| commit[:type] == type }
 
-          result += "\n"
           result += style_text(sections[type.to_sym], format, "heading").to_s
           result += "\n"
 
@@ -82,10 +84,10 @@ module Fastlane
 
             result += "\n"
           end
+          result += "\n"
         end
 
         if commits.any? { |commit| commit[:is_breaking_change] == true }
-          result += "\n"
           result += style_text("BREAKING CHANGES", format, "heading").to_s
           result += "\n"
 
@@ -97,7 +99,7 @@ module Fastlane
             hash = commit[:hash]
             url = "#{commit_url}/#{hash}"
             styled_link = style_link(short_hash, url, format).to_s
-            
+
             result += "- #{commit[:breaking_change]} (#{styled_link})"
 
             if params[:display_author]
@@ -106,7 +108,12 @@ module Fastlane
 
             result += "\n"
           end
+
+          result += "\n"
         end
+
+        # Trim any trailing newlines
+        result = result.rstrip!
 
         result
       end
@@ -229,6 +236,13 @@ module Fastlane
             key: :display_author,
             description: "Whether you want to show the author of the commit",
             default_value: false,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :display_title,
+            description: "Whether you want to hide the title/header with the version details at the top of the changelog",
+            default_value: true,
             type: Boolean,
             optional: true
           )
