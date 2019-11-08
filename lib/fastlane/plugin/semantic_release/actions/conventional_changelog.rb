@@ -130,37 +130,46 @@ module Fastlane
 
       def self.style_text(text, format, style)
         # formats the text according to the style we're looking to use
-        case style
-        when "title"
-          if format == "markdown"
-            "# #{text}"
-          else
-            "*#{text}*"
-          end
-        when "heading"
-          if format == "markdown"
-            "### #{text}"
-          else
-            "*#{text}*"
-          end
-        when "bold"
-          if format == "markdown"
-            "**#{text}**"
-          else
-            "*#{text}*"
-          end
-        else
+
+        # Skips all styling
+        if format == "plain"
           text
+        else
+          case style
+          when "title"
+            if format == "markdown"
+              "# #{text}"
+            else
+              "*#{text}*"
+            end
+          when "heading"
+            if format == "markdown"
+              "### #{text}"
+            else
+              "*#{text}*"
+            end
+          when "bold"
+            if format == "markdown"
+              "**#{text}**"
+            else
+              "*#{text}*"
+            end
+          else
+            text # catchall, shouldn't be needed
+          end
         end
       end
 
       def self.style_link(text, url, format)
         # formats the link according to the output format we need
         # Slack link format is very specific, so we prefer the markdown version to be the more readable fallback
-        if format == "slack"
+        case format
+        when "slack"
           "<#{url}|#{text}>"
-        else
+        when "markdown"
           "[#{text}](#{url})"
+        else
+          url
         end
       end
 
@@ -205,7 +214,7 @@ module Fastlane
         [
           FastlaneCore::ConfigItem.new(
             key: :format,
-            description: "You can use either markdown or slack",
+            description: "You can use either markdown, slack or plain",
             default_value: "markdown",
             optional: true
           ),

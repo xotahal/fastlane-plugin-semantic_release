@@ -26,7 +26,7 @@ Automated version managment and generator of release notes. Inspired by [semanti
 
 Available parameters:
 
-- `format: 'slack|markdown'` - defaults to `markdown` and formats the changelog for the destination you need
+- `format: 'slack|markdown|plain'` (defaults to `markdown`). This formats the changelog for the destination you need. If you're using this for TestFlight changelogs, we suggest using the `plain` option
 - `title: 'My Title'` - is appended to the release notes title, "1.1.8 My Title (YYYY-MM-DD)"
 - `display_title: true|false` (defaults to true) - allows you to hide the entire first line of the changelog
 - `display_links: true|false` (defaults to true) - allows you to hide links to commits from your changelog
