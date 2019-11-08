@@ -132,31 +132,33 @@ module Fastlane
         # formats the text according to the style we're looking to use
 
         # Skips all styling
-        if format == "plain"
-          text
-        else
-          case style
-          when "title"
-            if format == "markdown"
-              "# #{text}"
-            else
-              "*#{text}*"
-            end
-          when "heading"
-            if format == "markdown"
-              "### #{text}"
-            else
-              "*#{text}*"
-            end
-          when "bold"
-            if format == "markdown"
-              "**#{text}**"
-            else
-              "*#{text}*"
-            end
+        case style
+        when "title"
+          if format == "markdown"
+            "# #{text}"
+          elsif format == "slack"
+            "*#{text}*"
           else
-            text # catchall, shouldn't be needed
+            text
           end
+        when "heading"
+          if format == "markdown"
+            "### #{text}"
+          elsif format == "slack"
+            "*#{text}*"
+          else
+            "#{text}:"
+          end
+        when "bold"
+          if format == "markdown"
+            "**#{text}**"
+          elsif format == "slack"
+            "*#{text}*"
+          else
+            text
+          end
+        else
+          text # catchall, shouldn't be needed
         end
       end
 

@@ -60,7 +60,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
       allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
 
-      result = "1.0.2 (2019-05-25)\n\nBug fixes\n- sub (/long_hash)\n\nDocumentation\n- sub (/long_hash)"
+      result = "1.0.2 (2019-05-25)\n\nBug fixes:\n- sub (/long_hash)\n\nDocumentation:\n- sub (/long_hash)"
 
       expect(execute_lane_test_plain).to eq(result)
     end
@@ -97,7 +97,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
       allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
 
-      result = "Bug fixes\n- sub (/long_hash)\n\nBREAKING CHANGES\n- Test (/long_hash)"
+      result = "Bug fixes:\n- sub (/long_hash)\n\nBREAKING CHANGES:\n- Test (/long_hash)"
 
       expect(execute_lane_test_no_header_plain).to eq(result)
     end
