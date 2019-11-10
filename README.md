@@ -67,6 +67,8 @@ It provides these variables in `lane_context`.
 ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)'],
 ```
 
+And you can access these like this:
+
 `next_version = lane_context[SharedValues::RELEASE_NEXT_VERSION]`
 
 <img src="https://raw.githubusercontent.com/xotahal/fastlane-plugin-semantic_release/master/docs/Analyze.png" />
