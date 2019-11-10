@@ -63,11 +63,6 @@ module Fastlane
           commits.each do |commit|
             next if commit[:type] != type || commit[:is_merge]
 
-            author_name = commit[:author_name]
-            short_hash = commit[:short_hash]
-            hash = commit[:hash]
-            url = "#{commit_url}/#{hash}"
-
             result += "-"
 
             unless commit[:scope].nil?
@@ -78,12 +73,12 @@ module Fastlane
             result += " #{commit[:subject]}"
 
             if params[:display_links] == true
-              styled_link = style_link(short_hash, url, format).to_s
+              styled_link = build_commit_link(commit, commit_url, format).to_s
               result += " (#{styled_link})"
             end
 
             if params[:display_author]
-              result += "- #{author_name}"
+              result += "- #{commit[:author_name]}"
             end
 
             result += "\n"
@@ -97,23 +92,15 @@ module Fastlane
 
           commits.each do |commit|
             next unless commit[:is_breaking_change]
-
-            # TODO: This largely duplicates the section above, and could be refactored
-            author_name = commit[:author_name]
-            short_hash = commit[:short_hash]
-            hash = commit[:hash]
-            url = "#{commit_url}/#{hash}"
-
             result += "- #{commit[:breaking_change]}" # This is the only unique part of this loop
 
-            # TODO: This largely duplicates the section above, and could be refactored
             if params[:display_links] == true
-              styled_link = style_link(short_hash, url, format).to_s
+              styled_link = build_commit_link(commit, commit_url, format).to_s
               result += " (#{styled_link})"
             end
 
             if params[:display_author]
-              result += "- #{author_name}"
+              result += "- #{commit[:author_name]}"
             end
 
             result += "\n"
@@ -162,14 +149,17 @@ module Fastlane
         end
       end
 
-      def self.style_link(text, url, format)
+      def self.build_commit_link(commit, commit_url, format)
         # formats the link according to the output format we need
-        # Slack link format is very specific, so we prefer the markdown version to be the more readable fallback
+        short_hash = commit[:short_hash]
+        hash = commit[:hash]
+        url = "#{commit_url}/#{hash}"
+
         case format
         when "slack"
-          "<#{url}|#{text}>"
+          "<#{url}|#{short_hash}>"
         when "markdown"
-          "[#{text}](#{url})"
+          "[#{short_hash}](#{url})"
         else
           url
         end
