@@ -78,7 +78,7 @@ module Fastlane
             end
 
             if params[:display_author]
-              result += "- #{commit[:author_name]}"
+              result += " - #{commit[:author_name]}"
             end
 
             result += "\n"
@@ -100,7 +100,7 @@ module Fastlane
             end
 
             if params[:display_author]
-              result += "- #{commit[:author_name]}"
+              result += " - #{commit[:author_name]}"
             end
 
             result += "\n"

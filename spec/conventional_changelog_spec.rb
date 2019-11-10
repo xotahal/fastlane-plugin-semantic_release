@@ -19,6 +19,10 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack' ) end").runner.execute(:test)
     end
 
+    def execute_lane_test_author
+      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_author: true ) end").runner.execute(:test)
+    end
+
     def execute_lane_test_no_header
       Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_title: false ) end").runner.execute(:test)
     end
@@ -88,6 +92,18 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       result = "### Bug fixes\n- sub ([short_hash](/long_hash))\n\n### BREAKING CHANGES\n- Test ([short_hash](/long_hash))"
 
       expect(execute_lane_test_no_header).to eq(result)
+    end
+
+    it "should show the author if display_author is true in markdown format" do
+      commits = [
+        "fix: sub|BREAKING CHANGE: Test|long_hash|short_hash|Jiri Otahal|time"
+      ]
+      allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+      allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+      result = "### Bug fixes\n- sub ([short_hash](/long_hash)) - Jiri Otahal\n\n### BREAKING CHANGES\n- Test ([short_hash](/long_hash)) - Jiri Otahal"
+
+      expect(execute_lane_test_author).to eq(result)
     end
 
     it "should skip the header if display_title is false in plain format" do
