@@ -31,147 +31,138 @@ module Fastlane
         parsed = parse_commits(commits)
 
         commit_url = params[:commit_url]
+        format = params[:format]
 
-        if params[:format] == 'markdown'
-          result = markdown(parsed, version, commit_url, params)
-        elsif params[:format] == 'slack'
-          result = slack(parsed, version, commit_url, params)
-        end
+        result = note_builder(format, parsed, version, commit_url, params)
 
         result
       end
 
-      def self.markdown(commits, version, commit_url, params)
+      def self.note_builder(format, commits, version, commit_url, params)
         sections = params[:sections]
 
-        title = version
-        title += " #{params[:title]}" if params[:title]
+        result = ""
 
         # Begining of release notes
-        result = "# #{title} (#{Date.today})"
-        result += "\n"
+        if params[:display_title] == true
+          title = version
+          title += " #{params[:title]}" if params[:title]
+          title += " (#{Date.today})"
+
+          result = style_text(title, format, "title").to_s
+          result += "\n\n"
+        end
 
         params[:order].each do |type|
           # write section only if there is at least one commit
           next if commits.none? { |commit| commit[:type] == type }
 
-          result += "\n\n"
-          result += "### #{sections[type.to_sym]}"
+          result += style_text(sections[type.to_sym], format, "heading").to_s
           result += "\n"
 
           commits.each do |commit|
             next if commit[:type] != type || commit[:is_merge]
 
-            author_name = commit[:author_name]
-            short_hash = commit[:short_hash]
-            hash = commit[:hash]
-            link = "#{commit_url}/#{hash}"
-
             result += "-"
 
             unless commit[:scope].nil?
-              result += " **#{commit[:scope]}:**"
+              formatted_text = style_text("#{commit[:scope]}:", format, "bold").to_s
+              result += " #{formatted_text}"
             end
 
-            result += " #{commit[:subject]} ([#{short_hash}](#{link}))"
+            result += " #{commit[:subject]}"
+
+            if params[:display_links] == true
+              styled_link = build_commit_link(commit, commit_url, format).to_s
+              result += " (#{styled_link})"
+            end
 
             if params[:display_author]
-              result += "- #{author_name}"
+              result += " - #{commit[:author_name]}"
             end
 
             result += "\n"
           end
+          result += "\n"
         end
 
         if commits.any? { |commit| commit[:is_breaking_change] == true }
-          result += "\n\n"
-          result += "### BREAKING CHANGES"
+          result += style_text("BREAKING CHANGES", format, "heading").to_s
           result += "\n"
 
           commits.each do |commit|
             next unless commit[:is_breaking_change]
+            result += "- #{commit[:breaking_change]}" # This is the only unique part of this loop
 
-            author_name = commit[:author_name]
-            short_hash = commit[:short_hash]
-            hash = commit[:hash]
-            link = "#{commit_url}/#{hash}"
-
-            result += "- #{commit[:breaking_change]} ([#{short_hash}](#{link}))"
+            if params[:display_links] == true
+              styled_link = build_commit_link(commit, commit_url, format).to_s
+              result += " (#{styled_link})"
+            end
 
             if params[:display_author]
-              result += "- #{author_name}"
+              result += " - #{commit[:author_name]}"
             end
 
             result += "\n"
           end
+
+          result += "\n"
         end
+
+        # Trim any trailing newlines
+        result = result.rstrip!
 
         result
       end
 
-      def self.slack(commits, version, commit_url, params)
-        sections = params[:sections]
+      def self.style_text(text, format, style)
+        # formats the text according to the style we're looking to use
 
-        # Begining of release notes
-        result = "*#{version} #{params[:title]}* (#{Date.today})"
-        result += "\n"
-
-        params[:order].each do |type|
-          # write section only if there is at least one commit
-          next if commits.none? { |commit| commit[:type] == type }
-
-          result += "\n\n"
-          result += "*#{sections[type.to_sym]}*"
-          result += "\n"
-
-          commits.each do |commit|
-            next if commit[:type] != type || commit[:is_merge]
-
-            author_name = commit[:author_name]
-            short_hash = commit[:short_hash]
-            hash = commit[:hash]
-            link = "#{commit_url}/#{hash}"
-
-            result += "-"
-
-            unless commit[:scope].nil?
-              result += " *#{commit[:scope]}:*"
-            end
-
-            result += " #{commit[:subject]} (<#{link}|#{short_hash}>)"
-
-            if params[:display_author]
-              result += "- #{author_name}"
-            end
-
-            result += "\n"
+        # Skips all styling
+        case style
+        when "title"
+          if format == "markdown"
+            "# #{text}"
+          elsif format == "slack"
+            "*#{text}*"
+          else
+            text
           end
-        end
-
-        if commits.any? { |commit| commit[:is_breaking_change] == true }
-          result += "\n\n"
-          result += "*BREAKING CHANGES*"
-          result += "\n"
-
-          commits.each do |commit|
-            next unless commit[:is_breaking_change]
-
-            author_name = commit[:author_name]
-            short_hash = commit[:short_hash]
-            hash = commit[:hash]
-            link = "#{commit_url}/#{hash}"
-
-            result += "- #{commit[:breaking_change]} (<#{link}|#{short_hash}>)"
-
-            if params[:display_author]
-              result += "- #{author_name}"
-            end
-
-            result += "\n"
+        when "heading"
+          if format == "markdown"
+            "### #{text}"
+          elsif format == "slack"
+            "*#{text}*"
+          else
+            "#{text}:"
           end
+        when "bold"
+          if format == "markdown"
+            "**#{text}**"
+          elsif format == "slack"
+            "*#{text}*"
+          else
+            text
+          end
+        else
+          text # catchall, shouldn't be needed
         end
+      end
 
-        result
+      def self.build_commit_link(commit, commit_url, format)
+        # formats the link according to the output format we need
+        short_hash = commit[:short_hash]
+        hash = commit[:hash]
+        url = "#{commit_url}/#{hash}"
+
+        case format
+        when "slack"
+          "<#{url}|#{short_hash}>"
+        when "markdown"
+          "[#{short_hash}](#{url})"
+        else
+          url
+        end
       end
 
       def self.parse_commits(commits)
@@ -215,7 +206,7 @@ module Fastlane
         [
           FastlaneCore::ConfigItem.new(
             key: :format,
-            description: "You can use either markdown or slack",
+            description: "You can use either markdown, slack or plain",
             default_value: "markdown",
             optional: true
           ),
@@ -256,6 +247,20 @@ module Fastlane
             key: :display_author,
             description: "Whether you want to show the author of the commit",
             default_value: false,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :display_title,
+            description: "Whether you want to hide the title/header with the version details at the top of the changelog",
+            default_value: true,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :display_links,
+            description: "Whether you want to display the links to commit IDs",
+            default_value: true,
             type: Boolean,
             optional: true
           )
