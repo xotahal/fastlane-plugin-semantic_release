@@ -19,6 +19,7 @@ module Fastlane
         releases = params[:releases]
         pattern = /^(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?(!?)\: (.*)/
         breaking_change_pattern = /BREAKING CHANGES?: (.*)/
+        codepush_pattern = /codepush?: (.*)/
 
         matched = commit_subject.match(pattern)
         result = {
@@ -44,10 +45,14 @@ module Fastlane
 
           unless commit_body.nil?
             breaking_change_matched = commit_body.match(breaking_change_pattern)
+            codepush_matched = commit_body.match(codepush_pattern)
 
             unless breaking_change_matched.nil?
               result[:is_breaking_change] = true
               result[:breaking_change] = breaking_change_matched[1]
+            end
+            unless codepush_matched.nil?
+              result[:is_codepush_friendly] = true
             end
           end
         end

@@ -12,6 +12,7 @@ module Fastlane
       RELEASE_NEXT_MINOR_VERSION = :RELEASE_NEXT_MINOR_VERSION
       RELEASE_NEXT_PATCH_VERSION = :RELEASE_NEXT_PATCH_VERSION
       RELEASE_NEXT_VERSION = :RELEASE_NEXT_VERSION
+      RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION = :RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION
     end
 
     class AnalyzeCommitsAction < Action
@@ -34,7 +35,7 @@ module Fastlane
         commits.split("|>")
       end
 
-      def self.run(params)
+      def self.is_releasable(params)
         # Hash of the commit where is the last version
         # If the tag is not found we are taking HEAD as reference
         hash = 'HEAD'
@@ -101,10 +102,10 @@ module Fastlane
 
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
 
-        is_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
+        is_next_version_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
 
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
-        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_releasable
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
         # Last release analysis
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
         Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
@@ -115,9 +116,56 @@ module Fastlane
         Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = next_version
 
         success_message = "Next version (#{next_version}) is higher than last version (#{version}). This version should be released."
-        UI.success(success_message) if is_releasable
+        UI.success(success_message) if is_next_version_releasable
 
-        is_releasable
+        is_next_version_releasable
+      end
+
+      def self.is_codepush_friendly(params)
+        # Begining of the branch is taken for codepush analysis
+        hash = Actions.sh('git rev-list --max-parents=0 HEAD', log: false).chomp
+        next_major = 0
+        next_minor = 0
+        next_patch = 0
+        last_incompatible_codepush_version = '0.0.0'
+
+        # Get commits log between last version and head
+        splitted = get_commits_from_hash(hash: hash)
+        releases = params[:releases]
+
+        splitted.each do |line|
+          # conventional commits are in format
+          # type: subject (fix: app crash - for example)
+          commit = Helper::SemanticReleaseHelper.parse_commit(
+            commit_subject: line.split("|")[0],
+            commit_body: line.split("|")[1],
+            releases: releases
+          )
+
+          if commit[:release] == "major" || commit[:is_breaking_change]
+            next_major += 1
+            next_minor = 0
+            next_patch = 0
+          elsif commit[:release] == "minor"
+            next_minor += 1
+            next_patch = 0
+          elsif commit[:release] == "patch"
+            next_patch += 1
+          end
+
+          unless commit[:is_codepush_friendly]
+            last_incompatible_codepush_version = "#{next_major}.#{next_minor}.#{next_patch}"
+          end
+        end
+
+        Actions.lane_context[SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION] = last_incompatible_codepush_version
+      end
+
+      def self.run(params)
+        is_next_version_releasable = is_releasable(params)
+        is_codepush_friendly(params)
+
+        is_next_version_releasable
       end
 
       #####################################################
@@ -169,7 +217,8 @@ module Fastlane
           ['RELEASE_NEXT_MAJOR_VERSION', 'Major number of the next version'],
           ['RELEASE_NEXT_MINOR_VERSION', 'Minor number of the next version'],
           ['RELEASE_NEXT_PATCH_VERSION', 'Patch number of the next version'],
-          ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)']
+          ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)'],
+          ['RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION', 'Last commit without codepush']
         ]
       end
 
