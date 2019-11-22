@@ -132,6 +132,7 @@ module Fastlane
         # Get commits log between last version and head
         splitted = get_commits_from_hash(hash: hash)
         releases = params[:releases]
+        codepush_friendly = params[:codepush_friendly]
 
         splitted.each do |line|
           # conventional commits are in format
@@ -139,7 +140,8 @@ module Fastlane
           commit = Helper::SemanticReleaseHelper.parse_commit(
             commit_subject: line.split("|")[0],
             commit_body: line.split("|")[1],
-            releases: releases
+            releases: releases,
+            codepush_friendly: codepush_friendly
           )
 
           if commit[:release] == "major" || commit[:is_breaking_change]
@@ -197,6 +199,13 @@ module Fastlane
             description: "Map types of commit to release (major, minor, patch)",
             default_value: { fix: "patch", feat: "minor" },
             type: Hash
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :codepush_friendly,
+            description: "These types are consider as codepush friendly automatically",
+            default_value: ["chore", "test", "docs"],
+            type: Array,
+            optional: true
           ),
           FastlaneCore::ConfigItem.new(
             key: :tag_version_match,

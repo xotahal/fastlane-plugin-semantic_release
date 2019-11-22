@@ -124,6 +124,47 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION]).to eq("0.0.6")
     end
 
+    it "should accept only codepush: ok as codepush friendly commit" do
+      commits = [
+        "fix: ...|codepush: ok",
+        "fix: ...|codepush: ok",
+        "fix: ...|codepush: ok",
+        "fix: ...|codepush",
+        "fix: ...|codepush: ok",
+        "docs: ...|codepush: ok",
+        "feat: ...|codepush: ok",
+        "fix: ...|codepush: ok"
+      ]
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v0.0.0-1-g71ce4d8')
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+      expect(execute_lane_test).to eq(true)
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.1.1")
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION]).to eq("0.0.4")
+    end
+
+    it "should docs, test, etc commits are codepush friendly automatically" do
+      commits = [
+        "fix: ...|codepush: ok",
+        "fix: ...|codepush: ok",
+        "fix: ...|codepush",
+        "test: ...",
+        "refactor: ...|codepush: ok",
+        "feat: ...|codepush: ok",
+        "perf: ...|codepush: ok",
+        "chore: ...",
+        "docs: ...",
+        "feat: ...|codepush: ok",
+        "fix: ...|codepush: ok"
+      ]
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v0.0.0-1-g71ce4d8')
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+      expect(execute_lane_test).to eq(true)
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.2.1")
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION]).to eq("0.0.3")
+    end
+
     after do
     end
   end
