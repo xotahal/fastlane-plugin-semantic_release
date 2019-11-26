@@ -47,6 +47,19 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
     end
 
+    it "should increment major change and return true" do
+      commits = [
+        "docs: ...|",
+        "feat: ...|",
+        "fix!: ...|BREAKING CHANGE: Bump major version"
+      ]
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+      expect(execute_lane_test).to eq(true)
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
+    end
+
     it "should correctly parse scopes" do
       commits = [
         "docs(scope): ...|",
