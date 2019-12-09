@@ -19,7 +19,7 @@ module Fastlane
       def self.get_last_tag(params)
         # Try to find the tag
         command = "git describe --tags --match='#{params[:match]}'"
-        command +=  " --abbrev=#{params[:abbrev]}" if params[:abbrev]
+        command += " --abbrev=#{params[:abbrev]}" if params[:abbrev]
         Actions.sh(command, log: false)
       rescue
         UI.message("Tag was not found for match pattern - #{params[:match]}")
@@ -214,10 +214,10 @@ module Fastlane
             default_value: '\d+\.\d+\.\d+'
           ),
           FastlaneCore::ConfigItem.new(
-              key: :abbrev,
-              description: "Abbrev parameter of git describe. See man page of git describe for more info",
-              optional: true,
-              type: Integer
+            key: :abbrev,
+            description: "Abbrev parameter of git describe. See man page of git describe for more info",
+            optional: true,
+            type: Integer
           )
         ]
       end
