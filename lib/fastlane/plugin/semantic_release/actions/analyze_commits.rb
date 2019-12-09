@@ -22,7 +22,6 @@ module Fastlane
         # Try to find the tag
         command = "git describe --tags --match='#{params[:match]}'"
         command +=  " --abbrev=#{params[:abbrev]}" if params[:abbrev] != -1
-        UI.message(command)
         Actions.sh(command, log: params[:debug])
       rescue
         UI.message("Tag was not found for match pattern - #{params[:match]}")
