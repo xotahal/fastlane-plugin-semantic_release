@@ -21,8 +21,13 @@ module Fastlane
       def self.get_last_tag(params)
         # Try to find the tag
         command = "git describe --tags --match='#{params[:match]}'"
+<<<<<<< HEAD
         command +=  " --abbrev=#{params[:abbrev]}" if params[:abbrev]
         Actions.sh(command, log: params[:debug])
+=======
+        command += " --abbrev=#{params[:abbrev]}" if params[:abbrev]
+        Actions.sh(command, log: false)
+>>>>>>> ece0520 (Fixed rubocop offences)
       rescue
         UI.message("Tag was not found for match pattern - #{params[:match]}")
         ''
