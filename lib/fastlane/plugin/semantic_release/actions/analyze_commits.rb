@@ -18,7 +18,9 @@ module Fastlane
     class AnalyzeCommitsAction < Action
       def self.get_last_tag(params)
         # Try to find the tag
-        command = "git describe --tags --match=#{params[:match]}"
+        command = "git describe --tags --match='#{params[:match]}'"
+        command +=  " --abbrev=#{params[:abbrev]}" if params[:abbrev] != -1
+        UI.message(command)
         Actions.sh(command, log: false)
       rescue
         UI.message("Tag was not found for match pattern - #{params[:match]}")
@@ -42,7 +44,7 @@ module Fastlane
         # Default last version
         version = '0.0.0'
 
-        tag = get_last_tag(match: params[:match])
+        tag = get_last_tag(match: params[:match], abbrev: params[:abbrev])
 
         if tag.empty?
           UI.message("First commit of the branch is taken as a begining of next release")
@@ -211,6 +213,12 @@ module Fastlane
             key: :tag_version_match,
             description: "To parse version number from tag name",
             default_value: '\d+\.\d+\.\d+'
+          ),
+          FastlaneCore::ConfigItem.new(
+              key: :abbrev,
+              description: "Abbrev parameter of git describe. See man page of git describe for more info",
+              default_value: -1,
+              type: Integer
           )
         ]
       end
