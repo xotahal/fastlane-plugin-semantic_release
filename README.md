@@ -50,6 +50,12 @@ notes = conventional_changelog(format: 'slack', title: 'Android Alpha')
 - analyzes subject of every single commit and increases version number if there is a need (check conventional commit rules)
 - if next version number is higher then last version number it will recommend you to release this version
 
+Options:
+
+- `ignore_scopes: ['android','windows']`: allows you to ignore any commits which include a given scope, like this one: `feat(android): add functionality not relevant to the release we are producing`
+
+Example usage:
+
 ```
 isReleasable = analyze_commits(match: 'ios/beta*')
 ```
