@@ -9,8 +9,7 @@ module Fastlane
       # as `Helper::SemanticReleaseHelper.your_method`
       #
       def self.git_log(pretty, start)
-        commit_hashes = start.split(/\n/)
-        command = "git log --pretty='#{pretty}' --reverse #{commit_hashes.first}..HEAD"
+        command = "git log --pretty='#{pretty}' --reverse #{start}..HEAD"
         Actions.sh(command, log: false).chomp
       end
 
