@@ -85,6 +85,14 @@ module Fastlane
             releases: releases
           )
 
+          unless commit[:scope].nil?
+            # if this commit has a scope, then we need to inspect to see if that is one of the scopes we're trying to exclude
+            scope = commit[:scope]
+            scopes_to_ignore = params[:ignore_scopes]
+            # if it is, we'll skip this commit when bumping versions
+            next if scopes_to_ignore.include?(scope) #=> true
+          end
+
           if commit[:release] == "major" || commit[:is_breaking_change]
             next_major += 1
             next_minor = 0
@@ -211,6 +219,13 @@ module Fastlane
             key: :tag_version_match,
             description: "To parse version number from tag name",
             default_value: '\d+\.\d+\.\d+'
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :ignore_scopes,
+            description: "To ignore certain scopes when calculating releases",
+            default_value: [],
+            type: Array,
+            optional: true
           )
         ]
       end
