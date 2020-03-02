@@ -8,7 +8,11 @@ module Fastlane
 
     class ConventionalChangelogAction < Action
       def self.get_commits_from_hash(params)
-        commits = Helper::SemanticReleaseHelper.git_log('%s|%b|%H|%h|%an|%at|>', params[:hash])
+        commits = Helper::SemanticReleaseHelper.git_log(
+          pretty: '%s|%b|%H|%h|%an|%at|>',
+          start: params[:hash],
+          debug: params[:debug]
+        )
         commits.split("|>")
       end
 
@@ -27,7 +31,10 @@ module Fastlane
         version = lane_context[SharedValues::RELEASE_NEXT_VERSION]
 
         # Get commits log between last version and head
-        commits = get_commits_from_hash(hash: last_tag_hash)
+        commits = get_commits_from_hash(
+          hash: last_tag_hash,
+          debug: params[:debug]
+        )
         parsed = parse_commits(commits)
 
         commit_url = params[:commit_url]
@@ -261,6 +268,13 @@ module Fastlane
             key: :display_links,
             description: "Whether you want to display the links to commit IDs",
             default_value: true,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :debug,
+            description: "True if you want to log out a debug info",
+            default_value: false,
             type: Boolean,
             optional: true
           )

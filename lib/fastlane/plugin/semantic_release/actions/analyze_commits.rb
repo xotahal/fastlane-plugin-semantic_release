@@ -19,7 +19,7 @@ module Fastlane
       def self.get_last_tag(params)
         # Try to find the tag
         command = "git describe --tags --match=#{params[:match]}"
-        Actions.sh(command, log: false)
+        Actions.sh(command, log: params[:debug])
       rescue
         UI.message("Tag was not found for match pattern - #{params[:match]}")
         ''
@@ -27,11 +27,15 @@ module Fastlane
 
       def self.get_last_tag_hash(params)
         command = "git rev-list -n 1 refs/tags/#{params[:tag_name]}"
-        Actions.sh(command, log: false).chomp
+        Actions.sh(command, log: params[:debug]).chomp
       end
 
       def self.get_commits_from_hash(params)
-        commits = Helper::SemanticReleaseHelper.git_log('%s|%b|>', params[:hash])
+        commits = Helper::SemanticReleaseHelper.git_log(
+          pretty: '%s|%b|>',
+          start: params[:hash],
+          debug: params[:debug]
+        )
         commits.split("|>")
       end
 
@@ -42,12 +46,15 @@ module Fastlane
         # Default last version
         version = '0.0.0'
 
-        tag = get_last_tag(match: params[:match])
+        tag = get_last_tag(
+          match: params[:match],
+          debug: params[:debug]
+        )
 
         if tag.empty?
           UI.message("First commit of the branch is taken as a begining of next release")
           # If there is no tag found we taking the first commit of current branch
-          hash = Actions.sh('git rev-list --max-parents=0 HEAD', log: false).chomp
+          hash = Actions.sh('git rev-list --max-parents=0 HEAD', log: params[:debug]).chomp
         else
           # Tag's format is v2.3.4-5-g7685948
           # See git describe man page for more info
@@ -60,7 +67,10 @@ module Fastlane
 
           version = parsed_version[0]
           # Get a hash of last version tag
-          hash = get_last_tag_hash(tag_name: tag_name)
+          hash = get_last_tag_hash(
+            tag_name: tag_name,
+            debug: params[:debug]
+          )
 
           UI.message("Found a tag #{tag_name} associated with version #{version}")
         end
@@ -71,7 +81,10 @@ module Fastlane
         next_patch = (version.split('.')[2] || 0).to_i
 
         # Get commits log between last version and head
-        splitted = get_commits_from_hash(hash: hash)
+        splitted = get_commits_from_hash(
+          hash: hash,
+          debug: params[:debug]
+        )
 
         UI.message("Found #{splitted.length} commits since last release")
         releases = params[:releases]
@@ -131,14 +144,17 @@ module Fastlane
 
       def self.is_codepush_friendly(params)
         # Begining of the branch is taken for codepush analysis
-        hash = Actions.sh('git rev-list --max-parents=0 HEAD', log: false).chomp
+        hash = Actions.sh('git rev-list --max-parents=0 HEAD', log: params[:debug]).chomp
         next_major = 0
         next_minor = 0
         next_patch = 0
         last_incompatible_codepush_version = '0.0.0'
 
         # Get commits log between last version and head
-        splitted = get_commits_from_hash(hash: hash)
+        splitted = get_commits_from_hash(
+          hash: hash,
+          debug: params[:debug]
+        )
         releases = params[:releases]
         codepush_friendly = params[:codepush_friendly]
 
@@ -225,6 +241,13 @@ module Fastlane
             description: "To ignore certain scopes when calculating releases",
             default_value: [],
             type: Array,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :debug,
+            description: "True if you want to log out a debug info",
+            default_value: false,
+            type: Boolean,
             optional: true
           )
         ]

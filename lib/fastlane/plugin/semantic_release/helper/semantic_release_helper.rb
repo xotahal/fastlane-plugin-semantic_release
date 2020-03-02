@@ -8,9 +8,9 @@ module Fastlane
       # class methods that you define here become available in your action
       # as `Helper::SemanticReleaseHelper.your_method`
       #
-      def self.git_log(pretty, start)
-        command = "git log --pretty='#{pretty}' --reverse #{start}..HEAD"
-        Actions.sh(command, log: false).chomp
+      def self.git_log(params)
+        command = "git log --pretty='#{params[:pretty]}' --reverse #{params[:start]}..HEAD"
+        Actions.sh(command, log: params[:debug]).chomp
       end
 
       def self.parse_commit(params)
