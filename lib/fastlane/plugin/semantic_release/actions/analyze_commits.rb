@@ -143,12 +143,21 @@ module Fastlane
       end
 
       def self.is_codepush_friendly(params)
+        git_command = 'git rev-list --max-parents=0 HEAD'
         # Begining of the branch is taken for codepush analysis
-        hash = Actions.sh('git rev-list --max-parents=0 HEAD', log: params[:debug]).chomp
+        hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
+        hash = Actions.sh(git_command, log: params[:debug]).chomp
         next_major = 0
         next_minor = 0
         next_patch = 0
         last_incompatible_codepush_version = '0.0.0'
+
+        if hash_lines.to_i > 1
+          UI.error("#{git_command} resulted to more than 1 hash")
+          UI.error('This usualy happens when you pull only part of a git history. Check out how you pull the repo! "git fetch" should be enough.')
+          Actions.sh(git_command, log: true).chomp
+          return false
+        end
 
         # Get commits log between last version and head
         splitted = get_commits_from_hash(
