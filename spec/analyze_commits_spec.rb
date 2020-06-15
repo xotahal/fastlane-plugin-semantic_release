@@ -114,6 +114,109 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       end
     end
 
+    describe "single_step" do
+      it "should increment fix once and return true" do
+        commits = [
+          "docs: ...|",
+          "fix: ...|",
+          "fix: ...|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', single_step: true)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9")
+      end
+
+      it "should increment feat but not fix and return true" do
+        commits = [
+          "docs: ...|",
+          "feat: ...|",
+          "fix: ...|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', single_step: true)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0")
+      end
+
+      it "should increment major change but not fix and return true" do
+        commits = [
+          "docs: ...|",
+          "feat: ...|",
+          "fix: ...|BREAKING CHANGE: Test",
+          "fix: ...|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', single_step: true)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
+      end
+
+      describe "disables codepush" do
+        it "should provide codepush last version" do
+          commits = [
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush: ok",
+            "fix: ...",
+            "fix: ...|codepush: ok",
+            "docs: ...|codepush: ok",
+            "feat: ...|codepush: ok",
+            "fix: ...|codepush: ok"
+          ]
+          allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v0.0.0-1-g71ce4d8')
+          allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+          expect(execute_lane_test(match: 'v*', single_step: true)).to eq(true)
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.1.0")
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION]).to eq("0.0.0")
+        end
+
+        it "should accept only codepush: ok as codepush friendly commit" do
+          commits = [
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush",
+            "fix: ...|codepush: ok",
+            "docs: ...|codepush: ok",
+            "feat: ...|codepush: ok",
+            "fix: ...|codepush: ok"
+          ]
+          allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v0.0.0-1-g71ce4d8')
+          allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+          expect(execute_lane_test(match: 'v*', single_step: true)).to eq(true)
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.1.0")
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION]).to eq("0.0.0")
+        end
+
+        it "should docs, test, etc commits are codepush friendly automatically" do
+          commits = [
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush: ok",
+            "fix: ...|codepush",
+            "test: ...",
+            "refactor: ...|codepush: ok",
+            "feat: ...|codepush: ok",
+            "perf: ...|codepush: ok",
+            "chore: ...",
+            "docs: ...",
+            "feat: ...|codepush: ok",
+            "fix: ...|codepush: ok"
+          ]
+          allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v0.0.0-1-g71ce4d8')
+          allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+          expect(execute_lane_test(match: 'v*', single_step: true)).to eq(true)
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.2.0")
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION]).to eq("0.0.0")
+        end
+      end
+    end
+
     it "should return false since there is no change that would increase version" do
       commits = [
         "docs: ...|",
