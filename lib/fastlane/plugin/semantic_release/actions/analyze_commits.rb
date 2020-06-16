@@ -80,6 +80,12 @@ module Fastlane
         next_minor = (version.split('.')[1] || 0).to_i
         next_patch = (version.split('.')[2] || 0).to_i
 
+        # setup for single-step mode
+        single_step = params[:single_step]
+        bumped_major = false
+        bumped_minor = false
+        bumped_patch = false
+
         # Get commits log between last version and head
         splitted = get_commits_from_hash(
           hash: hash,
@@ -107,14 +113,26 @@ module Fastlane
           end
 
           if commit[:release] == "major" || commit[:is_breaking_change]
-            next_major += 1
-            next_minor = 0
-            next_patch = 0
+            unless bumped_major
+              next_major += 1
+              next_minor = 0
+              next_patch = 0
+              bumped_major = single_step
+              bumped_minor = single_step
+              bumped_patch = single_step
+            end
           elsif commit[:release] == "minor"
-            next_minor += 1
-            next_patch = 0
+            unless bumped_major
+              next_minor += 1
+              next_patch = 0
+              bumped_minor = single_step
+              bumped_patch = single_step
+            end
           elsif commit[:release] == "patch"
-            next_patch += 1
+            unless bumped_patch
+              next_patch += 1
+              bumped_patch = single_step
+            end
           end
 
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
@@ -143,6 +161,14 @@ module Fastlane
       end
 
       def self.is_codepush_friendly(params)
+        if params[:single_step]
+          # If single-step mode is selected, skip checking last codepush version
+          # as it is likely in the middle of a release.
+          UI.important("Skipping RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION because single_step was set")
+          Actions.lane_context[SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION] = "0.0.0"
+          return false
+        end
+
         git_command = 'git rev-list --max-parents=0 HEAD'
         # Begining of the branch is taken for codepush analysis
         hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
@@ -250,6 +276,13 @@ module Fastlane
             description: "To ignore certain scopes when calculating releases",
             default_value: [],
             type: Array,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :single_step,
+            description: "Only update the new version by the minimal amount",
+            default_value: false,
+            type: Boolean,
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
