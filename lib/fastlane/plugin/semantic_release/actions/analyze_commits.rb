@@ -13,6 +13,7 @@ module Fastlane
       RELEASE_NEXT_PATCH_VERSION = :RELEASE_NEXT_PATCH_VERSION
       RELEASE_NEXT_VERSION = :RELEASE_NEXT_VERSION
       RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION = :RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION
+      CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN = :CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN
     end
 
     class AnalyzeCommitsAction < Action
@@ -89,13 +90,15 @@ module Fastlane
         UI.message("Found #{splitted.length} commits since last release")
         releases = params[:releases]
 
+        format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
         splitted.each do |line|
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
           commit = Helper::SemanticReleaseHelper.parse_commit(
             commit_subject: line.split("|")[0],
             commit_body: line.split("|")[1],
-            releases: releases
+            releases: releases,
+            pattern: format_pattern
           )
 
           unless commit[:scope].nil?
@@ -167,6 +170,7 @@ module Fastlane
         releases = params[:releases]
         codepush_friendly = params[:codepush_friendly]
 
+        format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
         splitted.each do |line|
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
@@ -174,6 +178,7 @@ module Fastlane
             commit_subject: line.split("|")[0],
             commit_body: line.split("|")[1],
             releases: releases,
+            pattern: format_pattern,
             codepush_friendly: codepush_friendly
           )
 
@@ -228,6 +233,27 @@ module Fastlane
             end
           ),
           FastlaneCore::ConfigItem.new(
+            key: :commit_format,
+            description: "The commit format to apply. Presets are 'default' or 'angular', or you can provide your own Regexp. Note: the supplied regex _must_ have 4 capture groups, in order: type, scope, has_exclamation_mark, and subject",
+            default_value: "default",
+            is_string: false,
+            verify_block: proc do |value|
+              case value
+              when String
+                unless Helper::SemanticReleaseHelper.format_patterns.key?(value)
+                  UI.user_error!("Invalid format preset: #{value}")
+                end
+
+                pattern = Helper::SemanticReleaseHelper.format_patterns[value]
+              when Regexp
+                pattern = value
+              else
+                UI.user_error!("Invalid option type: #{value.inspect}")
+              end
+              Actions.lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN] = pattern
+            end
+          ),
+          FastlaneCore::ConfigItem.new(
             key: :releases,
             description: "Map types of commit to release (major, minor, patch)",
             default_value: { fix: "patch", feat: "minor" },
@@ -274,7 +300,8 @@ module Fastlane
           ['RELEASE_NEXT_MINOR_VERSION', 'Minor number of the next version'],
           ['RELEASE_NEXT_PATCH_VERSION', 'Patch number of the next version'],
           ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)'],
-          ['RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION', 'Last commit without codepush']
+          ['RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION', 'Last commit without codepush'],
+          ['CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN', 'The format pattern Regexp used to match commits (mainly for internal use)']
         ]
       end
 

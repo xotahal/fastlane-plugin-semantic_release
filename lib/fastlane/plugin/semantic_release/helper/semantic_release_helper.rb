@@ -5,6 +5,13 @@ module Fastlane
 
   module Helper
     class SemanticReleaseHelper
+      def self.format_patterns
+        return {
+          "default" => /^(docs|fix|feat|chore|style|refactor|perf|test)(?:\((.*)\))?(!?)\: (.*)/,
+          "angular" => /^(\w*)(?:\((.*)\))?(): (.*)/
+        }
+      end
+
       # class methods that you define here become available in your action
       # as `Helper::SemanticReleaseHelper.your_method`
       #
@@ -18,7 +25,7 @@ module Fastlane
         commit_body = params[:commit_body]
         releases = params[:releases]
         codepush_friendly = params[:codepush_friendly]
-        pattern = /^(docs|fix|feat|chore|style|refactor|perf|test)(?:\((.*)\))?(!?)\: (.*)/
+        pattern = params[:pattern]
         breaking_change_pattern = /BREAKING CHANGES?: (.*)/
         codepush_pattern = /codepush?: (.*)/
 
