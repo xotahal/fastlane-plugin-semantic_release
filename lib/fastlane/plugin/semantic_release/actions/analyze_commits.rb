@@ -180,7 +180,7 @@ module Fastlane
 
         if hash_lines.to_i > 1
           UI.error("#{git_command} resulted to more than 1 hash")
-          UI.error('This usualy happens when you pull only part of a git history. Check out how you pull the repo! "git fetch" should be enough.')
+          UI.error('This usually happens when you pull only part of a git history. Check out how you pull the repo! "git fetch" should be enough.')
           Actions.sh(git_command, log: true).chomp
           return false
         end
