@@ -18,7 +18,7 @@ module Fastlane
         commit_body = params[:commit_body]
         releases = params[:releases]
         codepush_friendly = params[:codepush_friendly]
-        pattern = /^(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?(!?)\: (.*)/
+        pattern = /^(docs|fix|feat|chore|style|refactor|perf|test)(?:\((.*)\))?(!?)\: (.*)/
         breaking_change_pattern = /BREAKING CHANGES?: (.*)/
         codepush_pattern = /codepush?: (.*)/
 
@@ -32,13 +32,13 @@ module Fastlane
 
         unless matched.nil?
           type = matched[1]
-          scope = matched[3]
+          scope = matched[2]
 
           result[:is_valid] = true
           result[:type] = type
           result[:scope] = scope
-          result[:has_exclamation_mark] = matched[4] == '!'
-          result[:subject] = matched[5]
+          result[:has_exclamation_mark] = matched[3] == '!'
+          result[:subject] = matched[4]
 
           unless releases.nil?
             result[:release] = releases[type.to_sym]
