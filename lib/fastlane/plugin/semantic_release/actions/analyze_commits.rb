@@ -118,7 +118,7 @@ module Fastlane
           end
 
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
-          UI.message("#{next_version}: #{line}")
+          UI.message("#{next_version}: #{line}") if params[:show_version_path]
         end
 
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
@@ -250,6 +250,13 @@ module Fastlane
             description: "To ignore certain scopes when calculating releases",
             default_value: [],
             type: Array,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :show_version_path,
+            description: "True if you want to print out the version calculated for each commit",
+            default_value: true,
+            type: Boolean,
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
