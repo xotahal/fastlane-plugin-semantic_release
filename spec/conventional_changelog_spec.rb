@@ -7,40 +7,40 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_ANALYZED] = true
     end
 
-    def execute_lane_test
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog end").runner.execute(:test)
+    def execute_lane_test(params = {})
+      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( #{params} ) end").runner.execute(:test)
     end
 
     def execute_lane_test_plain
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'plain' ) end").runner.execute(:test)
+      execute_lane_test(format: 'plain')
     end
 
     def execute_lane_test_slack
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack' ) end").runner.execute(:test)
+      execute_lane_test(format: 'slack')
     end
 
     def execute_lane_test_author
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_author: true ) end").runner.execute(:test)
+      execute_lane_test(display_author: true)
     end
 
     def execute_lane_test_no_header
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_title: false ) end").runner.execute(:test)
+      execute_lane_test(display_title: false)
     end
 
     def execute_lane_test_no_header_plain
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'plain', display_title: false ) end").runner.execute(:test)
+      execute_lane_test(format: 'plain', display_title: false)
     end
 
     def execute_lane_test_no_header_slack
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack', display_title: false ) end").runner.execute(:test)
+      execute_lane_test(format: 'slack', display_title: false)
     end
 
     def execute_lane_test_no_links
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_links: false ) end").runner.execute(:test)
+      execute_lane_test(display_links: false)
     end
 
     def execute_lane_test_no_links_slack
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack', display_links: false ) end").runner.execute(:test)
+      execute_lane_test(format: 'slack', display_links: false)
     end
 
     describe 'section creation' do
