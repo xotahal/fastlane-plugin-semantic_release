@@ -90,11 +90,13 @@ module Fastlane
         releases = params[:releases]
 
         splitted.each do |line|
+          parts = line.split("|")
+          subject = parts[0].strip
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
           commit = Helper::SemanticReleaseHelper.parse_commit(
-            commit_subject: line.split("|")[0],
-            commit_body: line.split("|")[1],
+            commit_subject: subject,
+            commit_body: parts[1],
             releases: releases
           )
 
@@ -118,7 +120,7 @@ module Fastlane
           end
 
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
-          UI.message("#{next_version}: #{line}") if params[:show_version_path]
+          UI.message("#{next_version}: #{subject}") if params[:show_version_path]
         end
 
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
