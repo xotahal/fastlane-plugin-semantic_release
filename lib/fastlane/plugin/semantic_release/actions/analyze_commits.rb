@@ -122,7 +122,7 @@ module Fastlane
               bumped_patch = single_step
             end
           elsif commit[:release] == "minor"
-            unless bumped_major
+            unless bumped_minor
               next_minor += 1
               next_patch = 0
               bumped_minor = single_step
