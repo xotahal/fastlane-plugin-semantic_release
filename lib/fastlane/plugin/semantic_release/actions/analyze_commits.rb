@@ -75,6 +75,32 @@ module Fastlane
           UI.message("Found a tag #{tag_name} associated with version #{version}")
         end
 
+        next_version = find_next_version(
+          version: version,
+          hash: hash,
+          releases: params[:releases],
+          ignore_scopes: params[:ignore_scopes],
+          single_step: params[:single_step],
+          debug: params[:debug]
+        )
+
+        is_next_version_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
+
+        Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
+        # Last release analysis
+        Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
+        Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
+
+        success_message = "Next version (#{next_version}) is higher than last version (#{version}). This version should be released."
+        UI.success(success_message) if is_next_version_releasable
+
+        is_next_version_releasable
+      end
+
+      def self.find_next_version(params)
+        version = params[:version]
+
         # converts last version string to the int numbers
         next_major = (version.split('.')[0] || 0).to_i
         next_minor = (version.split('.')[1] || 0).to_i
@@ -88,7 +114,7 @@ module Fastlane
 
         # Get commits log between last version and head
         splitted = get_commits_from_hash(
-          hash: hash,
+          hash: params[:hash],
           debug: params[:debug]
         )
 
@@ -141,23 +167,13 @@ module Fastlane
 
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
 
-        is_next_version_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
-
-        Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
-        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
-        # Last release analysis
-        Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
-        Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
         # Next release analysis
         Actions.lane_context[SharedValues::RELEASE_NEXT_MAJOR_VERSION] = next_major
         Actions.lane_context[SharedValues::RELEASE_NEXT_MINOR_VERSION] = next_minor
         Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = next_patch
         Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = next_version
 
-        success_message = "Next version (#{next_version}) is higher than last version (#{version}). This version should be released."
-        UI.success(success_message) if is_next_version_releasable
-
-        is_next_version_releasable
+        return next_version
       end
 
       def self.is_codepush_friendly(params)
