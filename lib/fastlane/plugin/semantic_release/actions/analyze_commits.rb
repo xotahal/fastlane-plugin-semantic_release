@@ -90,11 +90,13 @@ module Fastlane
         releases = params[:releases]
 
         splitted.each do |line|
+          parts = line.split("|")
+          subject = parts[0].strip
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
           commit = Helper::SemanticReleaseHelper.parse_commit(
-            commit_subject: line.split("|")[0],
-            commit_body: line.split("|")[1],
+            commit_subject: subject,
+            commit_body: parts[1],
             releases: releases
           )
 
@@ -118,7 +120,7 @@ module Fastlane
           end
 
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
-          UI.message("#{next_version}: #{line}")
+          UI.message("#{next_version}: #{subject}") if params[:show_version_path]
         end
 
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
@@ -250,6 +252,13 @@ module Fastlane
             description: "To ignore certain scopes when calculating releases",
             default_value: [],
             type: Array,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :show_version_path,
+            description: "True if you want to print out the version calculated for each commit",
+            default_value: true,
+            type: Boolean,
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
