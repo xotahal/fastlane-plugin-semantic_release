@@ -3,44 +3,45 @@ require 'spec_helper'
 describe Fastlane::Actions::ConventionalChangelogAction do
   describe "Conventional Changelog" do
     before do
+      Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN] = Fastlane::Helper::SemanticReleaseHelper.format_patterns["default"]
       Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION] = '1.0.2'
       Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_ANALYZED] = true
     end
 
-    def execute_lane_test
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog end").runner.execute(:test)
+    def execute_lane_test(params = {})
+      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( #{params} ) end").runner.execute(:test)
     end
 
     def execute_lane_test_plain
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'plain' ) end").runner.execute(:test)
+      execute_lane_test(format: 'plain')
     end
 
     def execute_lane_test_slack
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack' ) end").runner.execute(:test)
+      execute_lane_test(format: 'slack')
     end
 
     def execute_lane_test_author
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_author: true ) end").runner.execute(:test)
+      execute_lane_test(display_author: true)
     end
 
     def execute_lane_test_no_header
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_title: false ) end").runner.execute(:test)
+      execute_lane_test(display_title: false)
     end
 
     def execute_lane_test_no_header_plain
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'plain', display_title: false ) end").runner.execute(:test)
+      execute_lane_test(format: 'plain', display_title: false)
     end
 
     def execute_lane_test_no_header_slack
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack', display_title: false ) end").runner.execute(:test)
+      execute_lane_test(format: 'slack', display_title: false)
     end
 
     def execute_lane_test_no_links
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( display_links: false ) end").runner.execute(:test)
+      execute_lane_test(display_links: false)
     end
 
     def execute_lane_test_no_links_slack
-      Fastlane::FastFile.new.parse("lane :test do conventional_changelog( format: 'slack', display_links: false ) end").runner.execute(:test)
+      execute_lane_test(format: 'slack', display_links: false)
     end
 
     describe 'section creation' do
@@ -223,6 +224,37 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         result = "*1.0.2 (2019-05-25)*\n\n*Bug fixes*\n- sub\n\n*Documentation*\n- sub"
 
         expect(execute_lane_test_no_links_slack).to eq(result)
+      end
+    end
+
+    describe "commit format" do
+      format_pattern = /^prefix-(foo|bar|baz)(?:\.(.*))?(): (.*)/
+      commits = [
+        "prefix-foo: sub|body|long_hash|short_hash|Jiri Otahal|time",
+        "prefix-bar: sub|body|long_hash|short_hash|Jiri Otahal|time",
+        "prefix-baz.android: sub|body|long_hash|short_hash|Jiri Otahal|time",
+        "prefix-qux: sub|body|long_hash|short_hash|Jiri Otahal|time"
+      ]
+
+      before do
+        Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN] = format_pattern
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+      end
+
+      it "should use the commit format" do
+        result = "# 1.0.2 (2019-05-25)\n\n### Bazz\n- **android:** sub ([short_hash](/long_hash))\n\n### Foo\n- sub ([short_hash](/long_hash))\n\n### Bar\n- sub ([short_hash](/long_hash))\n\n### Other\n- prefix-qux: sub ([short_hash](/long_hash))"
+
+        changelog = execute_lane_test(
+          order: ['baz', 'foo', 'bar', 'no_type'],
+          sections: {
+            foo: "Foo",
+            bar: "Bar",
+            baz: "Bazz",
+            no_type: "Other"
+          }
+        )
+        expect(changelog).to eq(result)
       end
     end
 
