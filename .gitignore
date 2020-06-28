@@ -10,3 +10,5 @@ fastlane/README.md
 fastlane/report.xml
 coverage
 test-results
+.bundle/
+vendor/bundle/

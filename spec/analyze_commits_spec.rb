@@ -154,6 +154,34 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.10")
     end
 
+    describe "tags" do
+      it "should properly strip off git describe suffix" do
+        commits = [
+          "docs: ...|",
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v1.0.8', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9")
+      end
+
+      it "should allow for user-defined hyphens" do
+        commits = [
+          "docs: ...|",
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('ios-v1.0.8-beta.1-1-g71ce4d8')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'ios-v1.0.8-beta.1', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9")
+      end
+    end
+
     it "should provide codepush last version" do
       commits = [
         "fix: ...|codepush: ok",
