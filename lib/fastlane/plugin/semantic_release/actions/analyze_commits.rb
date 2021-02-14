@@ -6,6 +6,7 @@ module Fastlane
     module SharedValues
       RELEASE_ANALYZED = :RELEASE_ANALYZED
       RELEASE_IS_NEXT_VERSION_HIGHER = :RELEASE_IS_NEXT_VERSION_HIGHER
+      RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH = :RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH
       RELEASE_LAST_TAG_HASH = :RELEASE_LAST_TAG_HASH
       RELEASE_LAST_VERSION = :RELEASE_LAST_VERSION
       RELEASE_NEXT_MAJOR_VERSION = :RELEASE_NEXT_MAJOR_VERSION
@@ -120,6 +121,10 @@ module Fastlane
             next_patch = 0
           elsif commit[:release] == "patch"
             next_patch += 1
+          end
+
+          unless commit[:is_codepush_friendly]
+            Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = false
           end
 
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
@@ -303,6 +308,7 @@ module Fastlane
         [
           ['RELEASE_ANALYZED', 'True if commits were analyzed.'],
           ['RELEASE_IS_NEXT_VERSION_HIGHER', 'True if next version is higher then last version'],
+          ['RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH', 'True if next version is compatible with codepush'],
           ['RELEASE_LAST_TAG_HASH', 'Hash of commit that is tagged as a last version'],
           ['RELEASE_LAST_VERSION', 'Last version number - parsed from last tag.'],
           ['RELEASE_NEXT_MAJOR_VERSION', 'Major number of the next version'],
