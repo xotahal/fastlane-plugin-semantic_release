@@ -82,6 +82,8 @@ module Fastlane
         next_minor = (version.split('.')[1] || 0).to_i
         next_patch = (version.split('.')[2] || 0).to_i
 
+        is_next_version_compatible_with_codepush = true
+
         # Get commits log between last version and head
         splitted = get_commits_from_hash(
           hash: hash,
@@ -124,7 +126,7 @@ module Fastlane
           end
 
           unless commit[:is_codepush_friendly]
-            Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = false
+            is_next_version_compatible_with_codepush = false
           end
 
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
@@ -137,6 +139,7 @@ module Fastlane
 
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = is_next_version_compatible_with_codepush
         # Last release analysis
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
         Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
