@@ -6,6 +6,7 @@ module Fastlane
     module SharedValues
       RELEASE_ANALYZED = :RELEASE_ANALYZED
       RELEASE_IS_NEXT_VERSION_HIGHER = :RELEASE_IS_NEXT_VERSION_HIGHER
+      RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH = :RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH
       RELEASE_LAST_TAG_HASH = :RELEASE_LAST_TAG_HASH
       RELEASE_LAST_VERSION = :RELEASE_LAST_VERSION
       RELEASE_NEXT_MAJOR_VERSION = :RELEASE_NEXT_MAJOR_VERSION
@@ -81,6 +82,8 @@ module Fastlane
         next_minor = (version.split('.')[1] || 0).to_i
         next_patch = (version.split('.')[2] || 0).to_i
 
+        is_next_version_compatible_with_codepush = true
+
         # Get commits log between last version and head
         splitted = get_commits_from_hash(
           hash: hash,
@@ -122,6 +125,10 @@ module Fastlane
             next_patch += 1
           end
 
+          unless commit[:is_codepush_friendly]
+            is_next_version_compatible_with_codepush = false
+          end
+
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
           UI.message("#{next_version}: #{subject}") if params[:show_version_path]
         end
@@ -132,6 +139,7 @@ module Fastlane
 
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = is_next_version_compatible_with_codepush
         # Last release analysis
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
         Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
@@ -303,6 +311,7 @@ module Fastlane
         [
           ['RELEASE_ANALYZED', 'True if commits were analyzed.'],
           ['RELEASE_IS_NEXT_VERSION_HIGHER', 'True if next version is higher then last version'],
+          ['RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH', 'True if next version is compatible with codepush'],
           ['RELEASE_LAST_TAG_HASH', 'Hash of commit that is tagged as a last version'],
           ['RELEASE_LAST_VERSION', 'Last version number - parsed from last tag.'],
           ['RELEASE_NEXT_MAJOR_VERSION', 'Major number of the next version'],
