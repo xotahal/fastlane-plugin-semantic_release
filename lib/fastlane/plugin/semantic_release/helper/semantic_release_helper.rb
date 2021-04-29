@@ -5,12 +5,19 @@ module Fastlane
 
   module Helper
     class SemanticReleaseHelper
+      def self.format_patterns
+        return {
+          "default" => /^(docs|fix|feat|chore|style|refactor|perf|test)(?:\((.*)\))?(!?)\: (.*)/,
+          "angular" => /^(\w*)(?:\((.*)\))?(): (.*)/
+        }
+      end
+
       # class methods that you define here become available in your action
       # as `Helper::SemanticReleaseHelper.your_method`
       #
-      def self.git_log(pretty, start)
-        command = "git log --pretty='#{pretty}' --reverse #{start}..HEAD"
-        Actions.sh(command, log: false).chomp
+      def self.git_log(params)
+        command = "git log --pretty='#{params[:pretty]}' --reverse #{params[:start]}..HEAD"
+        Actions.sh(command, log: params[:debug]).chomp
       end
 
       def self.parse_commit(params)
@@ -18,7 +25,7 @@ module Fastlane
         commit_body = params[:commit_body]
         releases = params[:releases]
         codepush_friendly = params[:codepush_friendly]
-        pattern = /^(docs|fix|feat|chore|style|refactor|perf|test)(\((.*)\))?(!?)\: (.*)/
+        pattern = params[:pattern]
         breaking_change_pattern = /BREAKING CHANGES?: (.*)/
         codepush_pattern = /codepush?: (.*)/
 
@@ -32,13 +39,13 @@ module Fastlane
 
         unless matched.nil?
           type = matched[1]
-          scope = matched[3]
+          scope = matched[2]
 
           result[:is_valid] = true
           result[:type] = type
           result[:scope] = scope
-          result[:has_exclamation_mark] = matched[4] == '!'
-          result[:subject] = matched[5]
+          result[:has_exclamation_mark] = matched[3] == '!'
+          result[:subject] = matched[4]
 
           unless releases.nil?
             result[:release] = releases[type.to_sym]
