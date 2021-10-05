@@ -176,6 +176,34 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
     end
 
+    describe 'skipping ignore_scopes' do
+      commits = [
+        "Merge ...||long_hash|short_hash|Jiri Otahal|time",
+        "Custom Merge...||long_hash|short_hash|Jiri Otahal|time",
+        "fix(bump): sub||long_hash|short_hash|Jiri Otahal|time"
+      ]
+
+      it "should skip in markdown format" do
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = "# 1.0.2 (2019-05-25)\n\n### Other work\n- Custom Merge... ([short_hash](/long_hash))"
+
+        changelog = execute_lane_test(ignore_scopes: ['bump'])
+        expect(changelog).to eq(result)
+      end
+
+      it "should skip nothing in markdown format" do
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = "# 1.0.2 (2019-05-25)\n\n### Bug fixes\n- **bump:** sub ([short_hash](/long_hash))\n\n### Other work\n- Custom Merge... ([short_hash](/long_hash))"
+
+        changelog = execute_lane_test(ignore_scopes: ['not'])
+        expect(changelog).to eq(result)
+      end
+    end
+
     describe 'skipping merge conflicts' do
       commits = [
         "Merge ...||long_hash|short_hash|Jiri Otahal|time",

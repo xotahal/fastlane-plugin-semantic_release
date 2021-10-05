@@ -35,7 +35,7 @@ module Fastlane
           hash: last_tag_hash,
           debug: params[:debug]
         )
-        parsed = parse_commits(commits)
+        parsed = parse_commits(commits, params)
 
         commit_url = params[:commit_url]
         format = params[:format]
@@ -172,7 +172,7 @@ module Fastlane
         end
       end
 
-      def self.parse_commits(commits)
+      def self.parse_commits(commits, params)
         parsed = []
         # %s|%b|%H|%h|%an|%at
         format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
@@ -184,6 +184,14 @@ module Fastlane
             commit_body: splitted[1],
             pattern: format_pattern
           )
+
+          unless commit[:scope].nil?
+            # if this commit has a scope, then we need to inspect to see if that is one of the scopes we're trying to exclude
+            scope = commit[:scope]
+            scopes_to_ignore = params[:ignore_scopes]
+            # if it is, we'll skip this commit when bumping versions
+            next if scopes_to_ignore.include?(scope) #=> true
+          end
 
           commit[:hash] = splitted[2]
           commit[:short_hash] = splitted[3]
@@ -271,6 +279,13 @@ module Fastlane
             description: "Whether you want to display the links to commit IDs",
             default_value: true,
             type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :ignore_scopes,
+            description: "To ignore certain scopes when calculating releases",
+            default_value: [],
+            type: Array,
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
