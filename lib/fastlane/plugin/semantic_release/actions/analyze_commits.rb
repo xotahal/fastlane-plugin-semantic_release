@@ -41,41 +41,75 @@ module Fastlane
         commits.split("|>")
       end
 
-      def self.is_releasable(params)
-        # Hash of the commit where is the last version
-        # If the tag is not found we are taking HEAD as reference
-        hash = 'HEAD'
-        # Default last version
-        version = '0.0.0'
+      def self.get_beginning_of_next_sprint(params)
+        # command to get first commit
+        git_command = 'git rev-list --max-parents=0 HEAD'
 
-        tag = get_last_tag(
-          match: params[:match],
+        tag = get_last_tag(match: params[:match], debug: params[:debug])
+
+        # if tag doesn't exist it get's first commit or fallback tag (v*.*.*)
+        if tag.empty?
+          UI.message("It couldn't match tag for #{params[:match]}. Check if first commit can be taken as a beginning of next release")
+          # If there is no tag found we taking the first commit of current branch
+          hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
+
+          if hash_lines.to_i == 1
+            UI.message("First commit of the branch is taken as a begining of next release")
+            return {
+              # here we know this command will return 1 line
+              hash: Actions.sh(git_command, log: params[:debug]).chomp
+            }
+          end
+
+          # neighter matched tag and first hash could be used - as fallback we try vX.Y.Z
+          UI.message("It couldn't match tag for #{params[:match]} and couldn't use first commit. Check if tag vX.Y.Z can be taken as a begining of next release")
+          tag = get_last_tag(match: "v*", debug: params[:debug])
+
+          # even fallback tag doesn't work
+          if tag.empty?
+            return false
+          end
+        end
+
+        # Tag's format is v2.3.4-5-g7685948
+        # See git describe man page for more info
+        tag_name = tag.split('-')[0...-2].join('-').strip
+        parsed_version = tag_name.match(params[:tag_version_match])
+
+        if parsed_version.nil?
+          UI.user_error!("Error while parsing version from tag #{tag_name} by using tag_version_match - #{params[:tag_version_match]}. Please check if the tag contains version as you expect and if you are using single brackets for tag_version_match parameter.")
+        end
+
+        version = parsed_version[0]
+        # Get a hash of last version tag
+        hash = get_last_tag_hash(
+          tag_name: tag_name,
           debug: params[:debug]
         )
 
-        if tag.empty?
-          UI.message("First commit of the branch is taken as a begining of next release")
-          # If there is no tag found we taking the first commit of current branch
-          hash = Actions.sh('git rev-list --max-parents=0 HEAD', log: params[:debug]).chomp
-        else
-          # Tag's format is v2.3.4-5-g7685948
-          # See git describe man page for more info
-          tag_name = tag.split('-')[0...-2].join('-').strip
-          parsed_version = tag_name.match(params[:tag_version_match])
+        UI.message("Found a tag #{tag_name} associated with version #{version}")
 
-          if parsed_version.nil?
-            UI.user_error!("Error while parsing version from tag #{tag_name} by using tag_version_match - #{params[:tag_version_match]}. Please check if the tag contains version as you expect and if you are using single brackets for tag_version_match parameter.")
-          end
+        return {
+          hash: hash,
+          version: version
+        }
+      end
 
-          version = parsed_version[0]
-          # Get a hash of last version tag
-          hash = get_last_tag_hash(
-            tag_name: tag_name,
-            debug: params[:debug]
-          )
+      def self.is_releasable(params)
+        # Hash of the commit where is the last version
+        beginning = get_beginning_of_next_sprint(params)
 
-          UI.message("Found a tag #{tag_name} associated with version #{version}")
+        unless beginning
+          UI.error('It could not find a begining of this sprint. How to fix this:')
+          UI.error('-- ensure there is only one commit with --max-parents=0 (this command should return one line: "git rev-list --max-parents=0 HEAD")')
+          UI.error('-- tell us explicitely where the release starts by adding tag like this: vX.Y.Z (where X.Y.Z is version from which it starts computing next version number)')
+          return false
         end
+
+        # Default last version
+        version = beginning[:version] || '0.0.0'
+        # If the tag is not found we are taking HEAD as reference
+        hash = beginning[:hash] || 'HEAD'
 
         # converts last version string to the int numbers
         next_major = (version.split('.')[0] || 0).to_i
