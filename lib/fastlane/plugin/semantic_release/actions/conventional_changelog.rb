@@ -46,6 +46,91 @@ module Fastlane
       end
 
       def self.note_builder(format, commits, version, commit_url, params)
+        if(params[:group_by_scope])
+          note_builder_grouped(format, commits, version, commit_url, params)
+        else
+          note_builder_ungrouped(format, commits, version, commit_url, params)
+        end
+      end
+
+      def self.note_builder_ungrouped(format, commits, version, commit_url, params)
+        sections = params[:sections]
+
+        result = ""
+
+        # Begining of release notes
+        if params[:display_title] == true
+          title = version
+          title += " #{params[:title]}" if params[:title]
+          title += " (#{Date.today})"
+
+          result = style_text(title, format, "title").to_s
+          result += "\n\n"
+        end
+
+        params[:order].each do |type|
+          # write section only if there is at least one commit
+          next if commits.none? { |commit| commit[:type] == type }
+
+          result += style_text(sections[type.to_sym], format, "heading").to_s
+          result += "\n"
+
+          commits.each do |commit|
+            next if commit[:type] != type || commit[:is_merge]
+
+            result += "-"
+
+            unless commit[:scope].nil?
+              formatted_text = style_text("#{commit[:scope]}:", format, "bold").to_s
+              result += " #{formatted_text}"
+            end
+
+            result += " #{commit[:subject]}"
+
+            if params[:display_links] == true
+              styled_link = build_commit_link(commit, commit_url, format).to_s
+              result += " (#{styled_link})"
+            end
+
+            if params[:display_author]
+              result += " - #{commit[:author_name]}"
+            end
+
+            result += "\n"
+          end
+          result += "\n"
+        end
+
+        if commits.any? { |commit| commit[:is_breaking_change] == true }
+          result += style_text("BREAKING CHANGES", format, "heading").to_s
+          result += "\n"
+
+          commits.each do |commit|
+            next unless commit[:is_breaking_change]
+            result += "- #{commit[:breaking_change]}" # This is the only unique part of this loop
+
+            if params[:display_links] == true
+              styled_link = build_commit_link(commit, commit_url, format).to_s
+              result += " (#{styled_link})"
+            end
+
+            if params[:display_author]
+              result += " - #{commit[:author_name]}"
+            end
+
+            result += "\n"
+          end
+
+          result += "\n"
+        end
+
+        # Trim any trailing newlines
+        result = result.rstrip!
+
+        result
+      end
+
+      def self.note_builder_grouped(format, commits, version, commit_url, params)
         sections = params[:sections]
 
         result = ""
