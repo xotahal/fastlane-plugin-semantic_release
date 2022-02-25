@@ -294,7 +294,14 @@ module Fastlane
             default_value: false,
             type: Boolean,
             optional: true
-          )
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :group_by_scope,
+            description: "True if you want to group multiple changes by scope name",
+            default_value: false,
+            type: Boolean,
+            optional: true
+          ),
         ]
       end
 
