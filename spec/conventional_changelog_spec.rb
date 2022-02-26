@@ -1,8 +1,8 @@
 require 'spec_helper'
 
 describe Fastlane::Actions::ConventionalChangelogAction do
-  def commit(type, scope, message, author="Jiri Otahal")
-    "#{type}(#{scope}): #{message}|long_hash|short_hash|#{author}|time"
+  def commit(type, scope, sub, body='', author="Jiri Otahal")
+    "#{type}(#{scope}): #{sub}|#{body}|long_hash|short_hash|#{author}|time"
   end
 
   describe "Conventional Changelog" do
@@ -306,11 +306,13 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
 
       it "should hide in markdown format" do
-        expected_result = """### Bug fixes
-- Scope 1:
-   - Add a new feature([short_hash](/long_hash))
-   - Add another feature([short_hash](/long_hash))
-- Scope 1: Add one more([short_hash](/long_hash))"""
+        expected_result = """# 1.0.2 (2019-05-25)
+
+### Features
+**Scope 1:**
+   - Add a new feature ([short_hash](/long_hash))
+   - Add another feature ([short_hash](/long_hash))
+**Scope 2:** Add one more feature ([short_hash](/long_hash))"""
 
         result = execute_lane_test(group_by_scope: true)
 
@@ -318,11 +320,13 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
 
       it "should hide in plain format" do
-        expected_result = """Bug fixes
-- Scope 1:
+        expected_result = """# 1.0.2 (2019-05-25)
+
+Features
+**Scope 1:**
    - Add a new feature ([short_hash](/long_hash))
    - Add another feature ([short_hash](/long_hash))
-- Scope 1: Add one more ([short_hash](/long_hash))"""
+**Scope 2:** Add one more feature ([short_hash](/long_hash))"""
 
         result = execute_lane_test(group_by_scope: true, format: 'plain')
 
@@ -330,11 +334,13 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
 
       it "should hide in slack format" do
-        expected_result = """* Bug fixes *
-- Scope 1:
+        expected_result = """# 1.0.2 (2019-05-25)
+
+* Features *
+**Scope 1:**
    - Add a new feature ([short_hash](/long_hash))
    - Add another feature ([short_hash](/long_hash))
-- Scope 1: Add one more ([short_hash](/long_hash))"""
+**Scope 2:** Add one more feature ([short_hash](/long_hash))"""
 
         result = execute_lane_test(group_by_scope: true, format: 'slack')
 

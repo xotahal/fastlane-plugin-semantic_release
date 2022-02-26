@@ -132,67 +132,33 @@ module Fastlane
 
       def self.note_builder_grouped(format, commits, version, commit_url, params)
         sections = params[:sections]
-
         result = ""
 
-        # Begining of release notes
         if params[:display_title] == true
-          title = version
-          title += " #{params[:title]}" if params[:title]
-          title += " (#{Date.today})"
-
-          result = style_text(title, format, "title").to_s
+          result += build_title(version, params)
           result += "\n\n"
         end
 
+        commits_by_type = commits.group_by { |c| c[:type] }
         params[:order].each do |type|
-          # write section only if there is at least one commit
-          next if commits.none? { |commit| commit[:type] == type }
+          commits_in_type = commits_by_type[type]
+          next if commits_in_type.nil? || commits_in_type.size == 0
 
           result += style_text(sections[type.to_sym], format, "heading").to_s
           result += "\n"
 
-          commits.each do |commit|
-            next if commit[:type] != type || commit[:is_merge]
-
-            result += "-"
-
-            unless commit[:scope].nil?
-              formatted_text = style_text("#{commit[:scope]}:", format, "bold").to_s
-              result += " #{formatted_text}"
+          commits_by_scope = commits_in_type.group_by { |c| c[:scope].strip }
+          commits_by_scope.each do |scope, commits_in_scope|
+            unless scope.nil?
+              formatted_text = style_text("#{scope}:", format, "bold").to_s
+              result += "#{formatted_text}"
             end
 
-            result += " #{commit[:subject]}"
+            is_single_commit = commits_in_scope.size == 1
+            commits_in_scope.each do |commit|
+              next if commit[:is_merge]
 
-            if params[:display_links] == true
-              styled_link = build_commit_link(commit, commit_url, format).to_s
-              result += " (#{styled_link})"
-            end
-
-            if params[:display_author]
-              result += " - #{commit[:author_name]}"
-            end
-
-            result += "\n"
-          end
-          result += "\n"
-        end
-
-        if commits.any? { |commit| commit[:is_breaking_change] == true }
-          result += style_text("BREAKING CHANGES", format, "heading").to_s
-          result += "\n"
-
-          commits.each do |commit|
-            next unless commit[:is_breaking_change]
-            result += "- #{commit[:breaking_change]}" # This is the only unique part of this loop
-
-            if params[:display_links] == true
-              styled_link = build_commit_link(commit, commit_url, format).to_s
-              result += " (#{styled_link})"
-            end
-
-            if params[:display_author]
-              result += " - #{commit[:author_name]}"
+              result += build_commit(params, commit, is_single_commit)
             end
 
             result += "\n"
@@ -203,6 +169,35 @@ module Fastlane
 
         # Trim any trailing newlines
         result = result.rstrip!
+
+        result
+      end
+
+      def self.build_commit(params, commit, is_single_commit)
+        result = ""
+
+        if is_single_commit
+          result += " #{commit[:subject]}"
+        else
+          result += "\n   - #{commit[:subject]}"
+        end
+
+        if params[:display_links] == true
+          format = params[:format]
+          commit_url = params[:commit_url]
+
+          styled_link = build_commit_link(commit, commit_url, format).to_s
+
+          result += " (#{styled_link})"
+        end
+
+        if params[:display_author]
+          result += " - #{commit[:author_name]}"
+        end
+
+        if is_single_commit
+          result += "\n"
+        end
 
         result
       end
@@ -255,6 +250,15 @@ module Fastlane
         else
           url
         end
+      end
+
+      def self.build_title(version, params)
+        title = version
+        title += " #{params[:title]}" if params[:title]
+        title += " (#{Date.today})"
+
+        format = params[:format]
+        style_text(title, format, "title").to_s
       end
 
       def self.parse_commits(commits, params)
