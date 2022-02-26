@@ -320,13 +320,13 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
 
       it "should hide in plain format" do
-        expected_result = """# 1.0.2 (2019-05-25)
+        expected_result = """1.0.2 (2019-05-25)
 
-Features
-**Scope 1:**
-   - Add a new feature ([short_hash](/long_hash))
-   - Add another feature ([short_hash](/long_hash))
-**Scope 2:** Add one more feature ([short_hash](/long_hash))"""
+Features:
+Scope 1:
+   - Add a new feature (/long_hash)
+   - Add another feature (/long_hash)
+Scope 2: Add one more feature (/long_hash)"""
 
         result = execute_lane_test(group_by_scope: true, format: 'plain')
 
@@ -334,13 +334,13 @@ Features
       end
 
       it "should hide in slack format" do
-        expected_result = """# 1.0.2 (2019-05-25)
+        expected_result = """*1.0.2 (2019-05-25)*
 
-* Features *
-**Scope 1:**
-   - Add a new feature ([short_hash](/long_hash))
-   - Add another feature ([short_hash](/long_hash))
-**Scope 2:** Add one more feature ([short_hash](/long_hash))"""
+*Features*
+*Scope 1:*
+   - Add a new feature (</long_hash|short_hash>)
+   - Add another feature (</long_hash|short_hash>)
+*Scope 2:* Add one more feature (</long_hash|short_hash>)"""
 
         result = execute_lane_test(group_by_scope: true, format: 'slack')
 
