@@ -1,6 +1,5 @@
 require 'fastlane/action'
 require_relative '../helper/semantic_release_helper'
-require 'pry'
 
 module Fastlane
   module Actions
