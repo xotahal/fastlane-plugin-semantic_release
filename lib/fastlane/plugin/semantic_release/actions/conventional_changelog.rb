@@ -1,5 +1,6 @@
 require 'fastlane/action'
 require_relative '../helper/semantic_release_helper'
+require 'pry'
 
 module Fastlane
   module Actions
@@ -147,12 +148,10 @@ module Fastlane
           result += style_text(sections[type.to_sym], format, "heading").to_s
           result += "\n"
 
-          commits_by_scope = commits_in_type.group_by { |c| c[:scope].strip }
+          commits_by_scope = commits_in_type.group_by { |c| c[:scope]&.strip || sections[:no_type] }
           commits_by_scope.each do |scope, commits_in_scope|
-            unless scope.nil?
-              formatted_text = style_text("#{scope}:", format, "bold").to_s
-              result += "#{formatted_text}"
-            end
+            subtitle = style_text("#{scope}:", format, "bold").to_s
+            result += "#{subtitle}"
 
             is_single_commit = commits_in_scope.size == 1
             commits_in_scope.each do |commit|
