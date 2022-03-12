@@ -317,10 +317,10 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         it "should group in Scope 1 multiple commits in markdown format" do
           expected_result = "# 1.0.2 (2019-05-25)\n\n"\
                             "### Features\n"\
-                            "**Scope 1:**\n"\
+                            "- **Scope 1:**\n"\
                             "   - Add a new feature #{HASH_MARKDOWN}\n"\
                             "   - Add another feature #{HASH_MARKDOWN}\n"\
-                            "**Scope 2:** Add one more feature #{HASH_MARKDOWN}"
+                            "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}"
 
           result = execute_lane_test(group_by_scope: true)
 
@@ -330,10 +330,10 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         it "should group in Scope 1 multiple commits in plain format" do
           expected_result = "1.0.2 (2019-05-25)\n\n"\
                             "Features:\n"\
-                            "Scope 1:\n"\
+                            "- Scope 1:\n"\
                             "   - Add a new feature #{HASH_PLAIN}\n"\
                             "   - Add another feature #{HASH_PLAIN}\n"\
-                            "Scope 2: Add one more feature #{HASH_PLAIN}"
+                            "- Scope 2: Add one more feature #{HASH_PLAIN}"
 
           result = execute_lane_test(group_by_scope: true, format: 'plain')
 
@@ -343,10 +343,10 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         it "should group in Scope 1 multiple commits in slack format" do
           expected_result = "*1.0.2 (2019-05-25)*\n\n"\
                             "*Features*\n"\
-                            "*Scope 1:*\n"\
-                            "   - Add a new feature #{HASH_SLACK}\n"\
-                            "   - Add another feature #{HASH_SLACK}\n"\
-                            "*Scope 2:* Add one more feature #{HASH_SLACK}"
+                            "- *Scope 1:*\n"\
+                            "    - Add a new feature #{HASH_SLACK}\n"\
+                            "    - Add another feature #{HASH_SLACK}\n"\
+                            "- *Scope 2:* Add one more feature #{HASH_SLACK}"
 
           result = execute_lane_test(group_by_scope: true, format: 'slack')
 
@@ -370,10 +370,10 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         it "should group multiple commits without scope inside 'Other work' in markdown format" do
           expected_result = "# 1.0.2 (2019-05-25)\n\n"\
                             "### Features\n"\
-                            "**Same Scope:**\n"\
+                            "- **Same Scope:**\n"\
                             "   - Add a new feature with scope #{HASH_MARKDOWN}\n"\
                             "   - Add a new feature with scope 2 #{HASH_MARKDOWN}\n"\
-                            "**Other work:**\n"\
+                            "- **Other work:**\n"\
                             "   - Add a new feature 3 #{HASH_MARKDOWN}\n"\
                             "   - Add another feature #{HASH_MARKDOWN}"
 
@@ -385,10 +385,10 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         it "should group in Scope 1 multiple commits in plain format" do
           expected_result = "1.0.2 (2019-05-25)\n\n"\
                             "Features:\n"\
-                            "Same Scope:\n"\
+                            "- Same Scope:\n"\
                             "   - Add a new feature with scope #{HASH_PLAIN}\n"\
                             "   - Add a new feature with scope 2 #{HASH_PLAIN}\n"\
-                            "Other work:\n"\
+                            "- Other work:\n"\
                             "   - Add a new feature 3 #{HASH_PLAIN}\n"\
                             "   - Add another feature #{HASH_PLAIN}"
 
@@ -400,12 +400,12 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         it "should group in Scope 1 multiple commits in slack format" do
           expected_result = "*1.0.2 (2019-05-25)*\n\n"\
                             "*Features*\n"\
-                            "*Same Scope:*\n"\
-                            "   - Add a new feature with scope #{HASH_SLACK}\n"\
-                            "   - Add a new feature with scope 2 #{HASH_SLACK}\n"\
-                            "*Other work:*\n"\
-                            "   - Add a new feature 3 #{HASH_SLACK}\n"\
-                            "   - Add another feature #{HASH_SLACK}"
+                            "- *Same Scope:*\n"\
+                            "    - Add a new feature with scope #{HASH_SLACK}\n"\
+                            "    - Add a new feature with scope 2 #{HASH_SLACK}\n"\
+                            "- *Other work:*\n"\
+                            "    - Add a new feature 3 #{HASH_SLACK}\n"\
+                            "    - Add another feature #{HASH_SLACK}"
 
           result = execute_lane_test(group_by_scope: true, format: 'slack')
 
