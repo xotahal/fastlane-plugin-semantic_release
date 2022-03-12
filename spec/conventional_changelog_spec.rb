@@ -305,42 +305,39 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
       end
 
-      it "should hide in markdown format" do
-        expected_result = """# 1.0.2 (2019-05-25)
-
-### Features
-**Scope 1:**
-   - Add a new feature ([short_hash](/long_hash))
-   - Add another feature ([short_hash](/long_hash))
-**Scope 2:** Add one more feature ([short_hash](/long_hash))"""
+      it "should group in Scope 1 multiple commits in markdown format" do
+        expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                          "### Features\n"\
+                          "**Scope 1:**\n"\
+                          "   - Add a new feature ([short_hash](/long_hash))\n"\
+                          "   - Add another feature ([short_hash](/long_hash))\n"\
+                          "**Scope 2:** Add one more feature ([short_hash](/long_hash))"
 
         result = execute_lane_test(group_by_scope: true)
 
         expect(result).to eq(expected_result)
       end
 
-      it "should hide in plain format" do
-        expected_result = """1.0.2 (2019-05-25)
-
-Features:
-Scope 1:
-   - Add a new feature (/long_hash)
-   - Add another feature (/long_hash)
-Scope 2: Add one more feature (/long_hash)"""
+      it "should group in Scope 1 multiple commits in plain format" do
+        expected_result = "1.0.2 (2019-05-25)\n\n"\
+                          "Features:\n"\
+                          "Scope 1:\n"\
+                          "   - Add a new feature (/long_hash)\n"\
+                          "   - Add another feature (/long_hash)\n"\
+                          "Scope 2: Add one more feature (/long_hash)"
 
         result = execute_lane_test(group_by_scope: true, format: 'plain')
 
         expect(result).to eq(expected_result)
       end
 
-      it "should hide in slack format" do
-        expected_result = """*1.0.2 (2019-05-25)*
-
-*Features*
-*Scope 1:*
-   - Add a new feature (</long_hash|short_hash>)
-   - Add another feature (</long_hash|short_hash>)
-*Scope 2:* Add one more feature (</long_hash|short_hash>)"""
+      it "should group in Scope 1 multiple commits in slack format" do
+        expected_result = "*1.0.2 (2019-05-25)*\n\n"\
+                          "*Features*\n"\
+                          "*Scope 1:*\n"\
+                          "   - Add a new feature (</long_hash|short_hash>)\n"\
+                          "   - Add another feature (</long_hash|short_hash>)\n"\
+                          "*Scope 2:* Add one more feature (</long_hash|short_hash>)"
 
         result = execute_lane_test(group_by_scope: true, format: 'slack')
 
