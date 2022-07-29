@@ -73,21 +73,21 @@ module Fastlane
 
         # Tag's format is v2.3.4-5-g7685948
         # See git describe man page for more info
-        tag_name = tag.split('-')[0...-2].join('-').strip
-        parsed_version = tag_name.match(params[:tag_version_match])
+        # tag_name = tag.split('-')[0...-2].join('-').strip
+        parsed_version = tag.match(params[:tag_version_match])
 
         if parsed_version.nil?
-          UI.user_error!("Error while parsing version from tag #{tag_name} by using tag_version_match - #{params[:tag_version_match]}. Please check if the tag contains version as you expect and if you are using single brackets for tag_version_match parameter.")
+          UI.user_error!("Error while parsing version from tag #{tag} by using tag_version_match - #{params[:tag_version_match]}. Please check if the tag contains version as you expect and if you are using single brackets for tag_version_match parameter.")
         end
 
         version = parsed_version[0]
         # Get a hash of last version tag
         hash = get_last_tag_hash(
-          tag_name: tag_name,
+          tag_name: tag,
           debug: params[:debug]
         )
 
-        UI.message("Found a tag #{tag_name} associated with version #{version}")
+        UI.message("Found a tag #{tag} associated with version #{version}")
 
         return {
           hash: hash,
