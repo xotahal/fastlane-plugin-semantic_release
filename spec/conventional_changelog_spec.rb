@@ -307,7 +307,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
           commits = [
             commit(type: 'feat', scope: 'Scope 1', title: 'Add a new feature'),
             commit(type: 'feat', scope: 'Scope 1', title: 'Add another feature'),
-            commit(type: 'feat', scope: 'Scope 2', title: 'Add one more feature')
+            commit(type: 'feat', scope: 'Scope 2', title: 'Add one more feature'),
           ]
 
           allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
@@ -320,7 +320,8 @@ describe Fastlane::Actions::ConventionalChangelogAction do
                             "- **Scope 1:**\n"\
                             "   - Add a new feature #{HASH_MARKDOWN}\n"\
                             "   - Add another feature #{HASH_MARKDOWN}\n"\
-                            "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}"
+                            "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}\n"
+
 
           result = execute_lane_test(group_by_scope: true)
 
@@ -330,10 +331,10 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         it "should group in Scope 1 multiple commits in plain format" do
           expected_result = "1.0.2 (2019-05-25)\n\n"\
                             "Features:\n"\
+                            "- Scope 2: Add one more feature #{HASH_PLAIN}"
                             "- Scope 1:\n"\
                             "   - Add a new feature #{HASH_PLAIN}\n"\
                             "   - Add another feature #{HASH_PLAIN}\n"\
-                            "- Scope 2: Add one more feature #{HASH_PLAIN}"
 
           result = execute_lane_test(group_by_scope: true, format: 'plain')
 
@@ -350,6 +351,40 @@ describe Fastlane::Actions::ConventionalChangelogAction do
 
           result = execute_lane_test(group_by_scope: true, format: 'slack')
 
+          expect(result).to eq(expected_result)
+        end
+      end
+
+      context "having scopes and  multiple commits with different types" do
+        before do
+          commits = [
+            commit(type: 'feat', scope: 'Scope 1', title: 'Add a new feature'),
+            commit(type: 'feat', scope: 'Scope 1', title: 'Add another feature'),
+            commit(type: 'feat', scope: 'Scope 2', title: 'Add one more feature'),
+            commit(type: 'fix', scope: 'Scope 2', title: 'Add 1 more feature'),
+            commit(type: 'fix', scope: 'Scope 1', title: 'Add 2 more feature'),
+            commit(type: 'fix', scope: 'Scope 1', title: 'Add 3 more feature')
+          ]
+
+          allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+          allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+        end
+
+        it "should group by type and then by scope" do
+          expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                            "### Features\n"\
+                            "- **Scope 1:**\n"\
+                            "   - Add a new feature #{HASH_MARKDOWN}\n"\
+                            "   - Add another feature #{HASH_MARKDOWN}\n"\
+                            "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}\n"\
+                            "### Bug fixes\n"\
+                            "- **Scope 2:** Add 1 more feature #{HASH_MARKDOWN}"\
+                            "- **Scope 1:**\n"\
+                            "   - Add 2 more feature #{HASH_MARKDOWN}\n"\
+                            "   - Add 3 more feature #{HASH_MARKDOWN}\n"\
+
+
+          result = execute_lane_test(group_by_scope: true)
           expect(result).to eq(expected_result)
         end
       end
