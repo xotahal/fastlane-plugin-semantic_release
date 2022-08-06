@@ -132,11 +132,10 @@ module Fastlane
 
       def self.note_builder_grouped(format, commits, version, commit_url, params)
         sections = params[:sections]
-        result = ""
+        lines = []
 
         if params[:display_title] == true
-          result += build_title(version, params)
-          result += "\n\n"
+          sections < build_title(version, params)
         end
 
         commits_by_type = commits.group_by { |c| c[:type] }
@@ -144,31 +143,24 @@ module Fastlane
           commits_in_type = commits_by_type[type]
           next if commits_in_type.nil? || commits_in_type.size == 0
 
-          result += style_text_grouped(sections[type.to_sym], format, "heading").to_s
-          result += "\n"
+          text = style_text_grouped(sections[type.to_sym], format, "heading").to_s
+          lines < text
 
           commits_by_scope = commits_in_type.group_by { |c| c[:scope]&.strip || sections[:no_type] }
           commits_by_scope.each do |scope, commits_in_scope|
             subtitle = style_text_grouped("#{scope}:", format, "bold").to_s
-            result += "#{subtitle}"
+            lines < "#{subtitle}"
 
             is_single_commit = commits_in_scope.size == 1
             commits_in_scope.each do |commit|
               next if commit[:is_merge]
 
-              result += build_commit_grouped(params, commit, is_single_commit)
+              lines < build_commit_grouped(params, commit, is_single_commit)
             end
-
-            result += "\n"
           end
-
-          result += "\n"
         end
 
-        # Trim any trailing newlines
-        result = result.rstrip!
-
-        result
+        sections.join("\n")
       end
 
       def self.build_commit(params, commit, is_single_commit)
