@@ -1,8 +1,6 @@
 require 'spec_helper'
 require 'pry'
 
-
-
 describe Fastlane::Actions::ConventionalChangelogAction do
   HASH_MARKDOWN = "([short_hash](/long_hash))"
   HASH_PLAIN = "(/long_hash)"
@@ -310,7 +308,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
           commits = [
             commit(type: 'feat', scope: 'Scope 1', title: 'Add a new feature'),
             commit(type: 'feat', scope: 'Scope 1', title: 'Add another feature'),
-            commit(type: 'feat', scope: 'Scope 2', title: 'Add one more feature'),
+            commit(type: 'feat', scope: 'Scope 2', title: 'Add one more feature')
           ]
 
           allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
@@ -325,8 +323,8 @@ describe Fastlane::Actions::ConventionalChangelogAction do
                             "   - Add another feature #{HASH_MARKDOWN}\n"\
                             "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}"
 
-
           result = execute_lane_test(group_by_scope: true)
+
           expect(result).to eq(expected_result)
         end
 
@@ -398,7 +396,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
             commit(type: 'feat', scope: 'Same Scope', title: 'Add a new feature with scope'),
             commit(type: 'feat', title: 'Add a new feature 3'),
             commit(type: 'feat', scope: 'Same Scope', title: 'Add a new feature with scope 2'),
-            commit(type: 'feat', title: 'Add another feature'),
+            commit(type: 'feat', title: 'Add another feature')
           ]
 
           allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
