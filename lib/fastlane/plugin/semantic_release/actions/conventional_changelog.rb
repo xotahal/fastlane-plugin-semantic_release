@@ -135,7 +135,8 @@ module Fastlane
         lines = []
 
         if params[:display_title] == true
-          sections < build_title(version, params)
+          lines << build_title(version, params)
+          lines << ""
         end
 
         commits_by_type = commits.group_by { |c| c[:type] }
@@ -143,24 +144,34 @@ module Fastlane
           commits_in_type = commits_by_type[type]
           next if commits_in_type.nil? || commits_in_type.size == 0
 
-          text = style_text_grouped(sections[type.to_sym], format, "heading").to_s
-          lines < text
+          type_text = style_text_grouped(sections[type.to_sym], format, "heading").to_s
+          lines << type_text
 
           commits_by_scope = commits_in_type.group_by { |c| c[:scope]&.strip || sections[:no_type] }
-          commits_by_scope.each do |scope, commits_in_scope|
-            subtitle = style_text_grouped("#{scope}:", format, "bold").to_s
-            lines < "#{subtitle}"
+          commits_by_scope.each do |plain_scope, commits_in_scope|
+            scope = style_text_grouped("#{plain_scope}:", format, "bold").to_s
 
             is_single_commit = commits_in_scope.size == 1
-            commits_in_scope.each do |commit|
+            if is_single_commit
+              commit = commits_in_scope.first
               next if commit[:is_merge]
 
-              lines < build_commit_grouped(params, commit, is_single_commit)
+              commit_text = build_commit_grouped(params, commit, is_single_commit)
+              lines << "#{scope} #{commit_text}"
+            else
+              lines << scope
+
+              commits_in_scope.each do |commit|
+                next if commit[:is_merge]
+
+                commit_text = build_commit_grouped(params, commit, is_single_commit)
+                lines << commit_text
+              end
             end
           end
         end
 
-        sections.join("\n")
+        lines.join("\n")
       end
 
       def self.build_commit(params, commit, is_single_commit)
@@ -170,7 +181,7 @@ module Fastlane
         if is_single_commit
           result += " #{commit[:subject]}"
         else
-          result += "\n   - #{commit[:subject]}"
+          result += "   - #{commit[:subject]}"
         end
 
         if params[:display_links] == true
@@ -185,10 +196,6 @@ module Fastlane
           result += " - #{commit[:author_name]}"
         end
 
-        if is_single_commit
-          result += "\n"
-        end
-
         result
       end
 
@@ -196,13 +203,15 @@ module Fastlane
         result = ""
         format = params[:format]
 
+        sanitized_subject = commit[:subject].strip
+
         if is_single_commit
-          result += " #{commit[:subject]}"
+          result += sanitized_subject
         else
           if format == "slack"
-            result += "\n    - #{commit[:subject]}"
+            result += "    - #{sanitized_subject}"
           else
-            result += "\n   - #{commit[:subject]}"
+            result += "   - #{sanitized_subject}"
           end
         end
 
@@ -216,10 +225,6 @@ module Fastlane
 
         if params[:display_author]
           result += " - #{commit[:author_name]}"
-        end
-
-        if is_single_commit
-          result += "\n"
         end
 
         result
