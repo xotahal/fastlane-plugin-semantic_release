@@ -13,3 +13,11 @@ require 'fastlane' # to import the Action super class
 require 'fastlane/plugin/semantic_release' # import the actual plugin
 
 Fastlane.load_actions # load other actions (in case your plugin calls other actions or shared values)
+
+
+RSpec.configure do |config|
+  config.expect_with :rspec do |expectations|
+    expectations.max_formatted_output_length = 1000
+    expectations.include_chain_clauses_in_custom_matcher_descriptions = true
+  end
+end

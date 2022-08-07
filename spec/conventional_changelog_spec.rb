@@ -1,4 +1,7 @@
 require 'spec_helper'
+require 'pry'
+
+
 
 describe Fastlane::Actions::ConventionalChangelogAction do
   HASH_MARKDOWN = "([short_hash](/long_hash))"
@@ -320,21 +323,20 @@ describe Fastlane::Actions::ConventionalChangelogAction do
                             "- **Scope 1:**\n"\
                             "   - Add a new feature #{HASH_MARKDOWN}\n"\
                             "   - Add another feature #{HASH_MARKDOWN}\n"\
-                            "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}\n"
+                            "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}"
 
 
           result = execute_lane_test(group_by_scope: true)
-
           expect(result).to eq(expected_result)
         end
 
         it "should group in Scope 1 multiple commits in plain format" do
           expected_result = "1.0.2 (2019-05-25)\n\n"\
                             "Features:\n"\
-                            "- Scope 2: Add one more feature #{HASH_PLAIN}"
                             "- Scope 1:\n"\
                             "   - Add a new feature #{HASH_PLAIN}\n"\
                             "   - Add another feature #{HASH_PLAIN}\n"\
+                            "- Scope 2: Add one more feature #{HASH_PLAIN}"
 
           result = execute_lane_test(group_by_scope: true, format: 'plain')
 
@@ -378,13 +380,16 @@ describe Fastlane::Actions::ConventionalChangelogAction do
                             "   - Add another feature #{HASH_MARKDOWN}\n"\
                             "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}\n"\
                             "### Bug fixes\n"\
-                            "- **Scope 2:** Add 1 more feature #{HASH_MARKDOWN}"\
+                            "- **Scope 2:** Add 1 more feature #{HASH_MARKDOWN}\n"\
                             "- **Scope 1:**\n"\
                             "   - Add 2 more feature #{HASH_MARKDOWN}\n"\
-                            "   - Add 3 more feature #{HASH_MARKDOWN}\n"\
+                            "   - Add 3 more feature #{HASH_MARKDOWN}"\
 
 
           result = execute_lane_test(group_by_scope: true)
+          puts "RESULT #{result}\n"
+          puts "expected_result #{result}\n"
+
           expect(result).to eq(expected_result)
         end
       end
