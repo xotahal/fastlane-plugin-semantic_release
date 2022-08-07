@@ -387,8 +387,6 @@ describe Fastlane::Actions::ConventionalChangelogAction do
 
 
           result = execute_lane_test(group_by_scope: true)
-          puts "RESULT #{result}\n"
-          puts "expected_result #{result}\n"
 
           expect(result).to eq(expected_result)
         end
