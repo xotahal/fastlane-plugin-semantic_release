@@ -61,9 +61,11 @@ module Fastlane
             }
           end
 
-          # neighter matched tag and first hash could be used - as fallback we try vX.Y.Z
-          UI.message("It couldn't match tag for #{params[:match]} and couldn't use first commit. Check if tag vX.Y.Z can be taken as a begining of next release")
-          tag = get_last_tag(match: "v*", debug: params[:debug])
+          unless params[:prevent_tag_fallback]
+            # neither matched tag and first hash could be used - as fallback we try vX.Y.Z
+            UI.message("It couldn't match tag for #{params[:match]} and couldn't use first commit. Check if tag vX.Y.Z can be taken as a begining of next release")
+            tag = get_last_tag(match: "v*", debug: params[:debug])
+          end
 
           # even fallback tag doesn't work
           if tag.empty?
@@ -314,6 +316,13 @@ module Fastlane
             key: :tag_version_match,
             description: "To parse version number from tag name",
             default_value: '\d+\.\d+\.\d+'
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :prevent_tag_fallback,
+            description: "Prevent tag from falling back to vX.Y.Z when there is no match",
+            default_value: false,
+            type: Boolean,
+            optional: true
           ),
           FastlaneCore::ConfigItem.new(
             key: :ignore_scopes,
