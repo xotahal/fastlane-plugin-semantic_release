@@ -28,7 +28,7 @@ module Fastlane
       end
 
       def self.get_last_tag_hash(params)
-        command = "git rev-list -n 1 refs/tags/#{params[:tag_name]} -- #{Dir.pwd}"
+        command = "git rev-list -n 1 refs/tags/#{params[:tag_name]}"
         Actions.sh(command, log: params[:debug]).chomp
       end
 
@@ -43,7 +43,7 @@ module Fastlane
 
       def self.get_beginning_of_next_sprint(params)
         # command to get first commit
-        git_command = "git rev-list --max-parents=0 HEAD -- #{Dir.pwd}"
+        git_command = "git rev-list --max-parents=0 HEAD"
 
         tag = get_last_tag(match: params[:match], debug: params[:debug])
 
@@ -190,7 +190,7 @@ module Fastlane
       end
 
       def self.is_codepush_friendly(params)
-        git_command = "git rev-list --max-parents=0 HEAD -- #{Dir.pwd}"
+        git_command = "git rev-list --max-parents=0 HEAD"
         # Begining of the branch is taken for codepush analysis
         hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
         hash = Actions.sh(git_command, log: params[:debug]).chomp
