@@ -338,7 +338,7 @@ module Fastlane
           ),
           FastlaneCore::ConfigItem.new(
             key: :include_scopes,
-            description: "Only allow commits with certain scopes when calculating releases",
+            description: "To only include certain scopes when calculating releases",
             default_value: [],
             type: Array,
             optional: true

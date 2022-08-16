@@ -282,6 +282,13 @@ module Fastlane
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
+            key: :include_scopes,
+            description: "To only include certain scopes when calculating releases",
+            default_value: [],
+            type: Array,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
             key: :ignore_scopes,
             description: "To ignore certain scopes when calculating releases",
             default_value: [],
