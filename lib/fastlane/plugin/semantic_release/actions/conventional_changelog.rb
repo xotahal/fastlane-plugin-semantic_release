@@ -185,13 +185,11 @@ module Fastlane
             pattern: format_pattern
           )
 
-          unless commit[:scope].nil?
-            # if this commit has a scope, then we need to inspect to see if that is one of the scopes we're trying to exclude
-            scope = commit[:scope]
-            scopes_to_ignore = params[:ignore_scopes]
-            # if it is, we'll skip this commit when bumping versions
-            next if scopes_to_ignore.include?(scope) #=> true
-          end
+          next if Helper::SemanticReleaseHelper.should_exclude_commit(
+            commit_scope: commit[:scope],
+            include_scopes: params[:include_scopes],
+            ignore_scopes: params[:ignore_scopes]
+          )
 
           commit[:hash] = splitted[2]
           commit[:short_hash] = splitted[3]

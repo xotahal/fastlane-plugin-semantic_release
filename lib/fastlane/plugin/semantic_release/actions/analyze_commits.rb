@@ -97,20 +97,6 @@ module Fastlane
         }
       end
 
-      def self.should_exclude_commit(params)
-        commit_scope = params[:commit_scope]
-        scopes_to_include = params[:include_scopes]
-        scopes_to_ignore = params[:ignore_scopes]
-
-        unless scopes_to_include.empty?
-          return !scopes_to_include.include?(commit_scope)
-        end
-
-        unless commit_scope.nil?
-          return scopes_to_ignore.include?(commit_scope)
-        end
-      end
-
       def self.is_releasable(params)
         # Hash of the commit where is the last version
         beginning = get_beginning_of_next_sprint(params)
@@ -156,7 +142,7 @@ module Fastlane
             pattern: format_pattern
           )
 
-          next if should_exclude_commit(
+          next if Helper::SemanticReleaseHelper.should_exclude_commit(
             commit_scope: commit[:scope],
             include_scopes: params[:include_scopes],
             ignore_scopes: params[:ignore_scopes]
