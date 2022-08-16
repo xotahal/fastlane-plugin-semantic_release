@@ -28,7 +28,7 @@ module Fastlane
       end
 
       def self.get_last_tag_hash(params)
-        command = "git rev-list -n 1 refs/tags/#{params[:tag_name]} -- #{Dir.pwd}"
+        command = "git rev-list -n 1 refs/tags/#{params[:tag_name]}"
         Actions.sh(command, log: params[:debug]).chomp
       end
 
@@ -43,7 +43,7 @@ module Fastlane
 
       def self.get_beginning_of_next_sprint(params)
         # command to get first commit
-        git_command = "git rev-list --max-parents=0 HEAD -- #{Dir.pwd}"
+        git_command = "git rev-list --max-parents=0 HEAD"
 
         tag = get_last_tag(match: params[:match], debug: params[:debug])
 
@@ -150,6 +150,15 @@ module Fastlane
             next if scopes_to_ignore.include?(scope) #=> true
           end
 
+          scopes_to_include = params[:include_scopes]
+          # if there are no specified scopes to include, include all of them
+          unless scopes_to_include.empty?
+            # if this commit does not have a scope, skip when bumping versions
+            next if commit[:scope].nil?
+            # if it is, we'll include this commit when bumping versions
+            next unless scopes_to_include.include?(scope)
+          end
+
           if commit[:release] == "major" || commit[:is_breaking_change]
             next_major += 1
             next_minor = 0
@@ -192,7 +201,7 @@ module Fastlane
       end
 
       def self.is_codepush_friendly(params)
-        git_command = "git rev-list --max-parents=0 HEAD -- #{Dir.pwd}"
+        git_command = "git rev-list --max-parents=0 HEAD"
         # Begining of the branch is taken for codepush analysis
         hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
         hash = Actions.sh(git_command, log: params[:debug]).chomp
@@ -322,6 +331,13 @@ module Fastlane
             description: "Prevent tag from falling back to vX.Y.Z when there is no match",
             default_value: false,
             type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :include_scopes,
+            description: "Only allow commits with certain scopes when calculating releases",
+            default_value: [],
+            type: Array,
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
