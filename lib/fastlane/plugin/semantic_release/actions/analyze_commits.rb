@@ -97,6 +97,20 @@ module Fastlane
         }
       end
 
+      def self.should_exclude_commit(params)
+        commit_scope = params[:commit_scope]
+        scopes_to_include = params[:include_scopes]
+        scopes_to_ignore = params[:ignore_scopes]
+
+        unless scopes_to_include.empty?
+          return !scopes_to_include.include?(commit_scope)
+        end
+
+        unless commit_scope.nil?
+          return scopes_to_ignore.include?(commit_scope)
+        end
+      end
+
       def self.is_releasable(params)
         # Hash of the commit where is the last version
         beginning = get_beginning_of_next_sprint(params)
@@ -142,22 +156,11 @@ module Fastlane
             pattern: format_pattern
           )
 
-          unless commit[:scope].nil?
-            # if this commit has a scope, then we need to inspect to see if that is one of the scopes we're trying to exclude
-            scope = commit[:scope]
-            scopes_to_ignore = params[:ignore_scopes]
-            # if it is, we'll skip this commit when bumping versions
-            next if scopes_to_ignore.include?(scope) #=> true
-          end
-
-          scopes_to_include = params[:include_scopes]
-          # if there are no specified scopes to include, include all of them
-          unless scopes_to_include.empty?
-            # if this commit does not have a scope, skip when bumping versions
-            next if commit[:scope].nil?
-            # if it is, we'll include this commit when bumping versions
-            next unless scopes_to_include.include?(scope)
-          end
+          next if should_exclude_commit(
+            commit_scope: commit[:scope],
+            include_scopes: params[:include_scopes],
+            ignore_scopes: params[:ignore_scopes]
+          )
 
           if commit[:release] == "major" || commit[:is_breaking_change]
             next_major += 1
