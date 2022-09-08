@@ -43,7 +43,7 @@ module Fastlane
 
       def self.get_beginning_of_next_sprint(params)
         # command to get first commit
-        git_command = 'git rev-list --max-parents=0 HEAD'
+        git_command = "git rev-list --max-parents=0 HEAD"
 
         tag = get_last_tag(match: params[:match], debug: params[:debug])
 
@@ -61,9 +61,11 @@ module Fastlane
             }
           end
 
-          # neighter matched tag and first hash could be used - as fallback we try vX.Y.Z
-          UI.message("It couldn't match tag for #{params[:match]} and couldn't use first commit. Check if tag vX.Y.Z can be taken as a begining of next release")
-          tag = get_last_tag(match: "v*", debug: params[:debug])
+          unless params[:prevent_tag_fallback]
+            # neither matched tag and first hash could be used - as fallback we try vX.Y.Z
+            UI.message("It couldn't match tag for #{params[:match]} and couldn't use first commit. Check if tag vX.Y.Z can be taken as a begining of next release")
+            tag = get_last_tag(match: "v*", debug: params[:debug])
+          end
 
           # even fallback tag doesn't work
           if tag.empty?
@@ -140,13 +142,11 @@ module Fastlane
             pattern: format_pattern
           )
 
-          unless commit[:scope].nil?
-            # if this commit has a scope, then we need to inspect to see if that is one of the scopes we're trying to exclude
-            scope = commit[:scope]
-            scopes_to_ignore = params[:ignore_scopes]
-            # if it is, we'll skip this commit when bumping versions
-            next if scopes_to_ignore.include?(scope) #=> true
-          end
+          next if Helper::SemanticReleaseHelper.should_exclude_commit(
+            commit_scope: commit[:scope],
+            include_scopes: params[:include_scopes],
+            ignore_scopes: params[:ignore_scopes]
+          )
 
           if commit[:release] == "major" || commit[:is_breaking_change]
             next_major += 1
@@ -190,7 +190,7 @@ module Fastlane
       end
 
       def self.is_codepush_friendly(params)
-        git_command = 'git rev-list --max-parents=0 HEAD'
+        git_command = "git rev-list --max-parents=0 HEAD"
         # Begining of the branch is taken for codepush analysis
         hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
         hash = Actions.sh(git_command, log: params[:debug]).chomp
@@ -314,6 +314,20 @@ module Fastlane
             key: :tag_version_match,
             description: "To parse version number from tag name",
             default_value: '\d+\.\d+\.\d+'
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :prevent_tag_fallback,
+            description: "Prevent tag from falling back to vX.Y.Z when there is no match",
+            default_value: false,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :include_scopes,
+            description: "To only include certain scopes when calculating releases",
+            default_value: [],
+            type: Array,
+            optional: true
           ),
           FastlaneCore::ConfigItem.new(
             key: :ignore_scopes,

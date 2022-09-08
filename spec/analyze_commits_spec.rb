@@ -89,6 +89,13 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
           expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.2.1")
         end
 
+        it "should accommodate an empty include_scopes array" do
+          test_analyze_commits(commits)
+
+          expect(execute_lane_test(match: 'v*', include_scopes: [])).to eq(true)
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.2.1")
+        end
+
         it "should skip a single scopes if it has been added to ignore_scopes" do
           test_analyze_commits(commits)
 
@@ -110,6 +117,30 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
           test_analyze_commits(commits)
 
           expect(execute_lane_test(match: 'v*', ignore_scopes: ['ios'])).to eq(false)
+        end
+
+        it "should only include scopes specified in include_scopes array" do
+          commits = [
+            "fix(scope): ...|",
+            "feat(ios): ...|",
+            "fix(ios): ...|",
+            "feat(android): ...|",
+            "feat(web): ...|",
+            "feat(mobile): ...|"
+          ]
+          test_analyze_commits(commits)
+
+          expect(execute_lane_test(match: 'v*', include_scopes: ['android', 'ios', 'mobile'])).to eq(true)
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.3.0")
+        end
+
+        it "should not pass analysis checks if all commits are not in the included scopes" do
+          commits = [
+            "fix(ios): ...|"
+          ]
+          test_analyze_commits(commits)
+
+          expect(execute_lane_test(match: 'v*', include_scopes: ['android'])).to eq(false)
         end
       end
     end
