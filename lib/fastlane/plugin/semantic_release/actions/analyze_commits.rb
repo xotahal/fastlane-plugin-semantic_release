@@ -20,7 +20,8 @@ module Fastlane
     class AnalyzeCommitsAction < Action
       def self.get_last_tag(params)
         # Try to find the tag
-        command = "git describe --tags --match=#{params[:match]}"
+        command = "git describe --tags --match='#{params[:match]}'"
+        command += " --abbrev=#{params[:abbrev]}" if params[:abbrev]
         Actions.sh(command, log: params[:debug])
       rescue
         UI.message("Tag was not found for match pattern - #{params[:match]}")
@@ -45,7 +46,11 @@ module Fastlane
         # command to get first commit
         git_command = "git rev-list --max-parents=0 HEAD"
 
-        tag = get_last_tag(match: params[:match], debug: params[:debug])
+        tag = get_last_tag(
+          match: params[:match],
+          abbrev: params[:abbrev],
+          debug: params[:debug]
+        )
 
         # if tag doesn't exist it get's first commit or fallback tag (v*.*.*)
         if tag.empty?
@@ -76,6 +81,10 @@ module Fastlane
         # Tag's format is v2.3.4-5-g7685948
         # See git describe man page for more info
         tag_name = tag.split('-')[0...-2].join('-').strip
+
+        # if we don't find anything by including hyphens, try looking without them(e.g. v2.3.4)
+        tag_name = tag.split('-')[0].strip if tag_name.empty?
+
         parsed_version = tag_name.match(params[:tag_version_match])
 
         if parsed_version.nil?
@@ -349,6 +358,12 @@ module Fastlane
             default_value: false,
             type: Boolean,
             optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :abbrev,
+            description: "Abbrev parameter of git describe. See man page of git describe for more info",
+            optional: true,
+            type: Integer
           )
         ]
       end
