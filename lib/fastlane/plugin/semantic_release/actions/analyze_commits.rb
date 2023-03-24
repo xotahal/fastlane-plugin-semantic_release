@@ -132,7 +132,7 @@ module Fastlane
         format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
         splitted.each do |line|
           parts = line.split("|")
-          subject = parts[0].strip
+          subject = "#{parts[0]}".strip
           # conventional commits are in format
           # type: subject (fix: app crash - for example)
           commit = Helper::SemanticReleaseHelper.parse_commit(
