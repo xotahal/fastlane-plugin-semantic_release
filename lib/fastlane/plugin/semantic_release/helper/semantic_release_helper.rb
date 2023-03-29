@@ -35,7 +35,7 @@ module Fastlane
       end
 
       def self.parse_commit(params)
-        commit_subject = "#{params[:commit_subject]}".strip
+        commit_subject = params[:commit_subject].to_s.strip
         commit_body = params[:commit_body]
         releases = params[:releases]
         codepush_friendly = params[:codepush_friendly]
