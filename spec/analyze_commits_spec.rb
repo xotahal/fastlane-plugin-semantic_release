@@ -12,6 +12,13 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
     end
 
+    def test_analyze_commits_same_commit_as_tag
+      # for simplicity, these two actions are grouped together because they need to be run for every test,
+      # but require different commits to be passed each time. So we can't use the "before :each" for this
+      # this is the same as test_analyze_commits, but the last commit is the same as the last tag
+      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8')
+    end
+
     def execute_lane_test(params)
       Fastlane::FastFile.new.parse("lane :test do analyze_commits( #{params} ) end").runner.execute(:test)
     end
@@ -163,6 +170,17 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
         "Custom ...|"
       ]
       test_analyze_commits(commits)
+
+      expect(execute_lane_test(match: 'v*')).to eq(false)
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.8")
+    end
+
+    it "should return false when we are on the same commit as the last tag" do
+      commits = [
+        "Merge ...|",
+        "Custom ...|"
+      ]
+      test_analyze_commits_same_commit_as_tag
 
       expect(execute_lane_test(match: 'v*')).to eq(false)
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.8")
