@@ -46,6 +46,14 @@ module Fastlane
       end
 
       def self.note_builder(format, commits, version, commit_url, params)
+        if(params[:group_by_scope])
+          note_builder_grouped(format, commits, version, commit_url, params)
+        else
+          note_builder_ungrouped(format, commits, version, commit_url, params)
+        end
+      end
+
+      def self.note_builder_ungrouped(format, commits, version, commit_url, params)
         sections = params[:sections]
 
         result = ""
@@ -122,6 +130,106 @@ module Fastlane
         result
       end
 
+      def self.note_builder_grouped(format, commits, version, commit_url, params)
+        sections = params[:sections]
+        lines = []
+
+        if params[:display_title] == true
+          lines << build_title(version, params)
+          lines << ""
+        end
+
+        commits_by_type = commits.group_by { |c| c[:type] }
+        params[:order].each do |type|
+          commits_in_type = commits_by_type[type]
+          next if commits_in_type.nil? || commits_in_type.size == 0
+
+          type_text = style_text_grouped(sections[type.to_sym], format, "heading").to_s
+          lines << type_text
+
+          commits_by_scope = commits_in_type.group_by { |c| c[:scope]&.strip || sections[:no_type] }
+          commits_by_scope.each do |plain_scope, commits_in_scope|
+            scope = style_text_grouped("#{plain_scope}:", format, "bold").to_s
+
+            is_single_commit = commits_in_scope.size == 1
+            if is_single_commit
+              commit = commits_in_scope.first
+              next if commit[:is_merge]
+
+              commit_text = build_commit_grouped(params, commit, is_single_commit)
+              lines << "#{scope} #{commit_text}"
+            else
+              lines << scope
+
+              commits_in_scope.each do |commit|
+                next if commit[:is_merge]
+
+                commit_text = build_commit_grouped(params, commit, is_single_commit)
+                lines << commit_text
+              end
+            end
+          end
+        end
+
+        lines.join("\n")
+      end
+
+      def self.build_commit(params, commit, is_single_commit)
+        result = ""
+        format = params[:format]
+
+        if is_single_commit
+          result += " #{commit[:subject]}"
+        else
+          result += "   - #{commit[:subject]}"
+        end
+
+        if params[:display_links] == true
+          commit_url = params[:commit_url]
+
+          styled_link = build_commit_link(commit, commit_url, format).to_s
+
+          result += " (#{styled_link})"
+        end
+
+        if params[:display_author]
+          result += " - #{commit[:author_name]}"
+        end
+
+        result
+      end
+
+      def self.build_commit_grouped(params, commit, is_single_commit)
+        result = ""
+        format = params[:format]
+
+        sanitized_subject = commit[:subject].strip
+
+        if is_single_commit
+          result += sanitized_subject
+        else
+          if format == "slack"
+            result += "    - #{sanitized_subject}"
+          else
+            result += "   - #{sanitized_subject}"
+          end
+        end
+
+        if params[:display_links] == true
+          commit_url = params[:commit_url]
+
+          styled_link = build_commit_link(commit, commit_url, format).to_s
+
+          result += " (#{styled_link})"
+        end
+
+        if params[:display_author]
+          result += " - #{commit[:author_name]}"
+        end
+
+        result
+      end
+
       def self.style_text(text, format, style)
         # formats the text according to the style we're looking to use
 
@@ -156,6 +264,38 @@ module Fastlane
         end
       end
 
+      def self.style_text_grouped(text, format, style)
+        # formats the text according to the style we're looking to use
+        case style
+        when "title"
+          if format == "markdown"
+            "# #{text}"
+          elsif format == "slack"
+            "*#{text}*"
+          else
+            text
+          end
+        when "heading"
+          if format == "markdown"
+            "### #{text}"
+          elsif format == "slack"
+            "*#{text}*"
+          else
+            "#{text}:"
+          end
+        when "bold"
+          if format == "markdown"
+            "- **#{text}**"
+          elsif format == "slack"
+            "- *#{text}*"
+          else
+            "- #{text}"
+          end
+        else
+          text # catchall, shouldn't be needed
+        end
+      end
+
       def self.build_commit_link(commit, commit_url, format)
         # formats the link according to the output format we need
         short_hash = commit[:short_hash]
@@ -170,6 +310,15 @@ module Fastlane
         else
           url
         end
+      end
+
+      def self.build_title(version, params)
+        title = version
+        title += " #{params[:title]}" if params[:title]
+        title += " (#{Date.today})"
+
+        format = params[:format]
+        style_text(title, format, "title").to_s
       end
 
       def self.parse_commits(commits, params)
@@ -299,7 +448,14 @@ module Fastlane
             default_value: false,
             type: Boolean,
             optional: true
-          )
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :group_by_scope,
+            description: "True if you want to group multiple changes by scope name",
+            default_value: false,
+            type: Boolean,
+            optional: true
+          ),
         ]
       end
 

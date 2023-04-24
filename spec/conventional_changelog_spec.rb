@@ -1,6 +1,19 @@
 require 'spec_helper'
+require 'pry'
 
 describe Fastlane::Actions::ConventionalChangelogAction do
+  HASH_MARKDOWN = "([short_hash](/long_hash))"
+  HASH_PLAIN = "(/long_hash)"
+  HASH_SLACK = "(</long_hash|short_hash>)"
+
+  def commit(type: nil, scope: nil, title: nil, body: '', author: "Jiri Otahal")
+    if scope.nil?
+      "#{type}: #{title}|#{body}|long_hash|short_hash|#{author}|time"
+    else
+      "#{type}(#{scope}): #{title}|#{body}|long_hash|short_hash|#{author}|time"
+    end
+  end
+
   describe "Conventional Changelog" do
     before do
       Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN] = Fastlane::Helper::SemanticReleaseHelper.format_patterns["default"]
@@ -287,6 +300,154 @@ describe Fastlane::Actions::ConventionalChangelogAction do
     end
 
     after do
+    end
+
+    describe 'group messages if group_by_scope is true' do
+      context "with scope" do
+        before do
+          commits = [
+            commit(type: 'feat', scope: 'Scope 1', title: 'Add a new feature'),
+            commit(type: 'feat', scope: 'Scope 1', title: 'Add another feature'),
+            commit(type: 'feat', scope: 'Scope 2', title: 'Add one more feature')
+          ]
+
+          allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+          allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+        end
+
+        it "should group in Scope 1 multiple commits in markdown format" do
+          expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                            "### Features\n"\
+                            "- **Scope 1:**\n"\
+                            "   - Add a new feature #{HASH_MARKDOWN}\n"\
+                            "   - Add another feature #{HASH_MARKDOWN}\n"\
+                            "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}"
+
+          result = execute_lane_test(group_by_scope: true)
+
+          expect(result).to eq(expected_result)
+        end
+
+        it "should group in Scope 1 multiple commits in plain format" do
+          expected_result = "1.0.2 (2019-05-25)\n\n"\
+                            "Features:\n"\
+                            "- Scope 1:\n"\
+                            "   - Add a new feature #{HASH_PLAIN}\n"\
+                            "   - Add another feature #{HASH_PLAIN}\n"\
+                            "- Scope 2: Add one more feature #{HASH_PLAIN}"
+
+          result = execute_lane_test(group_by_scope: true, format: 'plain')
+
+          expect(result).to eq(expected_result)
+        end
+
+        it "should group in Scope 1 multiple commits in slack format" do
+          expected_result = "*1.0.2 (2019-05-25)*\n\n"\
+                            "*Features*\n"\
+                            "- *Scope 1:*\n"\
+                            "    - Add a new feature #{HASH_SLACK}\n"\
+                            "    - Add another feature #{HASH_SLACK}\n"\
+                            "- *Scope 2:* Add one more feature #{HASH_SLACK}"
+
+          result = execute_lane_test(group_by_scope: true, format: 'slack')
+
+          expect(result).to eq(expected_result)
+        end
+      end
+
+      context "having scopes and  multiple commits with different types" do
+        before do
+          commits = [
+            commit(type: 'feat', scope: 'Scope 1', title: 'Add a new feature'),
+            commit(type: 'feat', scope: 'Scope 1', title: 'Add another feature'),
+            commit(type: 'feat', scope: 'Scope 2', title: 'Add one more feature'),
+            commit(type: 'fix', scope: 'Scope 2', title: 'Add 1 more feature'),
+            commit(type: 'fix', scope: 'Scope 1', title: 'Add 2 more feature'),
+            commit(type: 'fix', scope: 'Scope 1', title: 'Add 3 more feature')
+          ]
+
+          allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+          allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+        end
+
+        it "should group by type and then by scope" do
+          expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                            "### Features\n"\
+                            "- **Scope 1:**\n"\
+                            "   - Add a new feature #{HASH_MARKDOWN}\n"\
+                            "   - Add another feature #{HASH_MARKDOWN}\n"\
+                            "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}\n"\
+                            "### Bug fixes\n"\
+                            "- **Scope 2:** Add 1 more feature #{HASH_MARKDOWN}\n"\
+                            "- **Scope 1:**\n"\
+                            "   - Add 2 more feature #{HASH_MARKDOWN}\n"\
+                            "   - Add 3 more feature #{HASH_MARKDOWN}"\
+
+
+          result = execute_lane_test(group_by_scope: true)
+
+          expect(result).to eq(expected_result)
+        end
+      end
+
+      context "without scope" do
+        before do
+          commits = [
+            commit(type: 'feat', scope: 'Same Scope', title: 'Add a new feature with scope'),
+            commit(type: 'feat', title: 'Add a new feature 3'),
+            commit(type: 'feat', scope: 'Same Scope', title: 'Add a new feature with scope 2'),
+            commit(type: 'feat', title: 'Add another feature')
+          ]
+
+          allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+          allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+        end
+
+        it "should group multiple commits without scope inside 'Other work' in markdown format" do
+          expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                            "### Features\n"\
+                            "- **Same Scope:**\n"\
+                            "   - Add a new feature with scope #{HASH_MARKDOWN}\n"\
+                            "   - Add a new feature with scope 2 #{HASH_MARKDOWN}\n"\
+                            "- **Other work:**\n"\
+                            "   - Add a new feature 3 #{HASH_MARKDOWN}\n"\
+                            "   - Add another feature #{HASH_MARKDOWN}"
+
+          result = execute_lane_test(group_by_scope: true)
+
+          expect(result).to eq(expected_result)
+        end
+
+        it "should group in Scope 1 multiple commits in plain format" do
+          expected_result = "1.0.2 (2019-05-25)\n\n"\
+                            "Features:\n"\
+                            "- Same Scope:\n"\
+                            "   - Add a new feature with scope #{HASH_PLAIN}\n"\
+                            "   - Add a new feature with scope 2 #{HASH_PLAIN}\n"\
+                            "- Other work:\n"\
+                            "   - Add a new feature 3 #{HASH_PLAIN}\n"\
+                            "   - Add another feature #{HASH_PLAIN}"
+
+          result = execute_lane_test(group_by_scope: true, format: 'plain')
+
+          expect(result).to eq(expected_result)
+        end
+
+        it "should group in Scope 1 multiple commits in slack format" do
+          expected_result = "*1.0.2 (2019-05-25)*\n\n"\
+                            "*Features*\n"\
+                            "- *Same Scope:*\n"\
+                            "    - Add a new feature with scope #{HASH_SLACK}\n"\
+                            "    - Add a new feature with scope 2 #{HASH_SLACK}\n"\
+                            "- *Other work:*\n"\
+                            "    - Add a new feature 3 #{HASH_SLACK}\n"\
+                            "    - Add another feature #{HASH_SLACK}"
+
+          result = execute_lane_test(group_by_scope: true, format: 'slack')
+
+          expect(result).to eq(expected_result)
+        end
+      end
     end
   end
 end
