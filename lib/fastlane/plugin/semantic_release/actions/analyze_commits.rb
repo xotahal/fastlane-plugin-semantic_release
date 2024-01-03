@@ -8,6 +8,9 @@ module Fastlane
       RELEASE_IS_NEXT_VERSION_HIGHER = :RELEASE_IS_NEXT_VERSION_HIGHER
       RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH = :RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH
       RELEASE_LAST_TAG_HASH = :RELEASE_LAST_TAG_HASH
+      RELEASE_LAST_MAJOR_VERSION = :RELEASE_LAST_MAJOR_VERSION
+      RELEASE_LAST_MINOR_VERSION = :RELEASE_LAST_MINOR_VERSION
+      RELEASE_LAST_PATCH_VERSION = :RELEASE_LAST_PATCH_VERSION
       RELEASE_LAST_VERSION = :RELEASE_LAST_VERSION
       RELEASE_NEXT_MAJOR_VERSION = :RELEASE_NEXT_MAJOR_VERSION
       RELEASE_NEXT_MINOR_VERSION = :RELEASE_NEXT_MINOR_VERSION
@@ -118,9 +121,9 @@ module Fastlane
         hash = beginning[:hash] || 'HEAD'
 
         # converts last version string to the int numbers
-        next_major = (version.split('.')[0] || 0).to_i
-        next_minor = (version.split('.')[1] || 0).to_i
-        next_patch = (version.split('.')[2] || 0).to_i
+        next_major = last_major = (version.split('.')[0] || 0).to_i
+        next_minor = last_minor = (version.split('.')[1] || 0).to_i
+        next_patch = last_patch = (version.split('.')[2] || 0).to_i
 
         is_next_version_compatible_with_codepush = true
 
@@ -180,6 +183,9 @@ module Fastlane
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = is_next_version_compatible_with_codepush
         # Last release analysis
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
+        Actions.lane_context[SharedValues::RELEASE_LAST_MAJOR_VERSION] = last_major
+        Actions.lane_context[SharedValues::RELEASE_LAST_MINOR_VERSION] = last_minor
+        Actions.lane_context[SharedValues::RELEASE_LAST_PATCH_VERSION] = last_patch
         Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
         # Next release analysis
         Actions.lane_context[SharedValues::RELEASE_NEXT_MAJOR_VERSION] = next_major
@@ -365,6 +371,9 @@ module Fastlane
           ['RELEASE_IS_NEXT_VERSION_HIGHER', 'True if next version is higher then last version'],
           ['RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH', 'True if next version is compatible with codepush'],
           ['RELEASE_LAST_TAG_HASH', 'Hash of commit that is tagged as a last version'],
+          ['RELEASE_LAST_MAJOR_VERSION', 'Major number of the last version'],
+          ['RELEASE_LAST_MINOR_VERSION', 'Minor number of the last version'],
+          ['RELEASE_LAST_PATCH_VERSION', 'Patch number of the last version'],
           ['RELEASE_LAST_VERSION', 'Last version number - parsed from last tag.'],
           ['RELEASE_NEXT_MAJOR_VERSION', 'Major number of the next version'],
           ['RELEASE_NEXT_MINOR_VERSION', 'Minor number of the next version'],
