@@ -71,7 +71,7 @@ module Fastlane
 
       def self.get_commits_from_hash(start:, releases:, codepush_friendly:, include_scopes:, ignore_scopes:, debug:)
         commits = Helper::SemanticReleaseHelper.git_log(
-          pretty: '%s|%b|>',
+          pretty: '%s|%b|%H|%h|>',
           start: start,
           debug: debug
         )
@@ -82,6 +82,7 @@ module Fastlane
             # conventional commits are in format
             # type: subject (fix: app crash - for example)
             Helper::SemanticReleaseHelper.parse_commit(
+              commit_hash: parts[2],
               commit_subject: parts[0],
               commit_body: parts[1],
               releases: releases,

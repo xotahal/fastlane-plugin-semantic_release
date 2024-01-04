@@ -35,6 +35,7 @@ module Fastlane
       end
 
       def self.parse_commit(params)
+        commit_hash = params[:commit_hash]
         commit_subject = params[:commit_subject].to_s.strip
         commit_body = params[:commit_body]
         releases = params[:releases]
@@ -45,6 +46,7 @@ module Fastlane
 
         matched = commit_subject.match(pattern)
         result = {
+          hash: commit_hash,
           is_valid: false,
           subject: commit_subject,
           is_merge: !(commit_subject =~ /^Merge/).nil?,

@@ -180,6 +180,7 @@ module Fastlane
           splitted = line.split("|")
 
           commit = Helper::SemanticReleaseHelper.parse_commit(
+            commit_hash: splitted[2],
             commit_subject: splitted[0],
             commit_body: splitted[1],
             pattern: format_pattern
