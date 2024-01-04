@@ -214,6 +214,7 @@ module Fastlane
 
       def self.calculate_commit_version(
         commit_hash:,
+        fold:,
         tag_version_match:,
         match:,
         prevent_tag_fallback:,
@@ -234,7 +235,7 @@ module Fastlane
 
         commit_version = previous_version.clone()
 
-        get_commits_from_hash(
+        commits = get_commits_from_hash(
           start: previous_version_hash,
           recent_first: false,
           releases: releases,
@@ -255,9 +256,9 @@ module Fastlane
               commit_version.patch += 1
             end
 
-            if print_version_for_each_commit
+            if print_version_for_each_commit && !fold
               UI.message("#{commit_version}: #{commit[:subject]}")
-            end
+                          end
 
             commit
 
@@ -265,12 +266,32 @@ module Fastlane
           # be driven the extra step needed to match the requested commit hash.
           end.take_while do |commit| 
             commit[:hash] != commit_hash
-          end.force
+          end.to_a
+
+        if fold
+          if commit_version.major != previous_version.major
+            commit_version.major = previous_version.major + 1
+            commit_version.minor = 0
+            commit_version.patch = 0
+          elsif commit_version.minor != previous_version.minor
+            commit_version.minor = previous_version.minor + 1
+            commit_version.patch = 0
+          elsif commit_version.patch != previous_version.patch
+            commit_version.patch = previous_version.patch + 1
+          end
+        end
+
+        if print_version_for_each_commit && fold
+          commits.each do |commit|
+            UI.message("#{commit_version}: #{commit[:subject]}")
+          end
+        end
 
         return commit_version
       end
 
       def self.calculate_next_version(
+        fold:,
         tag_version_match:,
         match:,
         prevent_tag_fallback:,
@@ -283,6 +304,7 @@ module Fastlane
       )
         calculate_commit_version(
           commit_hash: get_head_hash(debug: debug),
+          fold: fold,
           tag_version_match: tag_version_match,
           match: match, 
           prevent_tag_fallback: prevent_tag_fallback,
@@ -296,6 +318,7 @@ module Fastlane
       end
 
       def self.calculate_last_codepush_incompatible_version(
+        fold:,
         tag_version_match:,
         match:,
         prevent_tag_fallback:,
@@ -333,6 +356,7 @@ module Fastlane
 
         calculate_commit_version(
           commit_hash: incompatible_hash,
+          fold: fold,
           tag_version_match: tag_version_match,
           match: match, 
           prevent_tag_fallback: prevent_tag_fallback,
@@ -377,6 +401,7 @@ module Fastlane
         UI.message("Last version: #{last_version}")
 
         next_version = calculate_next_version(
+          fold: params[:fold],
           tag_version_match: params[:tag_version_match],
           match: params[:match],
           prevent_tag_fallback: params[:prevent_tag_fallback],
@@ -390,6 +415,7 @@ module Fastlane
         UI.message("Next version: #{next_version}")
 
         last_codepush_incompatible_version = calculate_last_codepush_incompatible_version(
+          fold: params[:fold],
           tag_version_match: params[:tag_version_match],
           match: params[:match],
           prevent_tag_fallback: params[:prevent_tag_fallback],
@@ -491,6 +517,13 @@ module Fastlane
             description: "To ignore certain scopes when calculating releases",
             default_value: [],
             type: Array,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :fold,
+            description: "Whether to fold multiple version changes into one (i.e. increment from e.g. v1.2.3 to v2.0.0 rather than v8.5.2)",
+            default_value: false,
+            type: Boolean,
             optional: true
           ),
           FastlaneCore::ConfigItem.new(

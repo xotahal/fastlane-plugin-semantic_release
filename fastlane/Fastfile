@@ -4,6 +4,12 @@ lane :test do
   puts(notes)
 end
 
+lane :test_fold do
+  analyze_commits(match: 'v*', fold: true)
+  notes = conventional_changelog
+  puts(notes)
+end
+
 lane :publish do
   is_releasable = analyze_commits(match: 'v*')
 
