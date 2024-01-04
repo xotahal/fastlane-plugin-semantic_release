@@ -69,13 +69,32 @@ module Fastlane
         Actions.sh(command, log: params[:debug]).chomp
       end
 
-      def self.get_commits_from_hash(params)
+      def self.get_commits_from_hash(start:, releases:, codepush_friendly:, include_scopes:, ignore_scopes:, debug:)
         commits = Helper::SemanticReleaseHelper.git_log(
           pretty: '%s|%b|>',
-          start: params[:hash],
-          debug: params[:debug]
+          start: start,
+          debug: debug
         )
         commits.split("|>")
+          .lazy
+          .map do |line|
+            parts = line.split("|")
+            # conventional commits are in format
+            # type: subject (fix: app crash - for example)
+            Helper::SemanticReleaseHelper.parse_commit(
+              commit_subject: parts[0],
+              commit_body: parts[1],
+              releases: releases,
+              pattern: lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN],
+              codepush_friendly: codepush_friendly
+            )
+          end.select do |commit|
+            !Helper::SemanticReleaseHelper.should_exclude_commit(
+              commit_scope: commit[:scope],
+              include_scopes: include_scopes,
+              ignore_scopes: ignore_scopes
+            )
+          end
       end
 
       def self.get_beginning_of_next_sprint(params)
@@ -151,34 +170,20 @@ module Fastlane
         is_next_version_compatible_with_codepush = true
 
         # Get commits log between last version and head
-        splitted = get_commits_from_hash(
-          hash: hash,
+        commits = get_commits_from_hash(
+          start: hash,
+          releases: params[:releases],
+          codepush_friendly: params[:codepush_friendly],
+          include_scopes: params[:include_scopes],
+          ignore_scopes: params[:ignore_scopes],
           debug: params[:debug]
-        )
+        ).to_a
 
-        UI.message("Found #{splitted.length} commits since last release")
+        UI.message("Found #{commits.length} commits since last release")
         releases = params[:releases]
 
         format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
-        splitted.each do |line|
-          parts = line.split("|")
-          subject = parts[0].to_s.strip
-          # conventional commits are in format
-          # type: subject (fix: app crash - for example)
-          commit = Helper::SemanticReleaseHelper.parse_commit(
-            commit_subject: subject,
-            commit_body: parts[1],
-            releases: releases,
-            pattern: format_pattern,
-            codepush_friendly: params[:codepush_friendly]
-          )
-
-          next if Helper::SemanticReleaseHelper.should_exclude_commit(
-            commit_scope: commit[:scope],
-            include_scopes: params[:include_scopes],
-            ignore_scopes: params[:ignore_scopes]
-          )
-
+        commits.each do |commit|
           if commit[:release] == "major" || commit[:is_breaking_change]
             next_version.major += 1
             next_version.minor = 0
@@ -194,7 +199,7 @@ module Fastlane
             is_next_version_compatible_with_codepush = false
           end
 
-          UI.message("#{next_version}: #{subject}") if params[:show_version_path]
+          UI.message("#{next_version}: #{commit[:subject]}") if params[:show_version_path]
         end
 
         return last_version, next_version
@@ -216,25 +221,14 @@ module Fastlane
         end
 
         # Get commits log between last version and head
-        splitted = get_commits_from_hash(
-          hash: hash,
+        get_commits_from_hash(
+          start: hash,
+          releases: params[:releases],
+          codepush_friendly: params[:codepush_friendly],
+          include_scopes: params[:include_scopes],
+          ignore_scopes: params[:ignore_scopes],
           debug: params[:debug]
-        )
-        releases = params[:releases]
-        codepush_friendly = params[:codepush_friendly]
-
-        format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
-        splitted.each do |line|
-          # conventional commits are in format
-          # type: subject (fix: app crash - for example)
-          commit = Helper::SemanticReleaseHelper.parse_commit(
-            commit_subject: line.split("|")[0],
-            commit_body: line.split("|")[1],
-            releases: releases,
-            pattern: format_pattern,
-            codepush_friendly: codepush_friendly
-          )
-
+        ).each do |commit|
           if commit[:release] == "major" || commit[:is_breaking_change]
             next_version.major += 1
             next_version.minor = 0

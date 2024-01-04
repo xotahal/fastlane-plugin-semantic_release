@@ -9,7 +9,7 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       # for simplicity, these two actions are grouped together because they need to be run for every test,
       # but require different commits to be passed each time. So we can't use the "before :each" for this
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
-      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+      allow(Fastlane::Helper::SemanticReleaseHelper).to receive(:git_log).and_return(commits.join("|>"))
     end
 
     def test_analyze_commits_same_commit_as_tag
@@ -210,7 +210,7 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
           "fix: ...|"
         ]
         allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.8-1-g71ce4d8')
-        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Fastlane::Helper::SemanticReleaseHelper).to receive(:git_log).and_return(commits.join("|>"))
 
         expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v1.0.8', debug: false)
         expect(execute_lane_test(match: 'v*')).to eq(true)
@@ -223,7 +223,7 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
           "fix: ...|"
         ]
         allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('ios-v1.0.8-beta.1-1-g71ce4d8')
-        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Fastlane::Helper::SemanticReleaseHelper).to receive(:git_log).and_return(commits.join("|>"))
 
         expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'ios-v1.0.8-beta.1', debug: false)
         expect(execute_lane_test(match: 'v*')).to eq(true)
@@ -245,7 +245,7 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
         "fix: ...|codepush: ok"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v0.0.0-1-g71ce4d8')
-      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+      allow(Fastlane::Helper::SemanticReleaseHelper).to receive(:git_log).and_return(commits.join("|>"))
 
       expect(execute_lane_test(match: 'v*')).to eq(true)
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.1.1")
@@ -264,7 +264,7 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
         "fix: ...|codepush: ok"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v0.0.0-1-g71ce4d8')
-      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+      allow(Fastlane::Helper::SemanticReleaseHelper).to receive(:git_log).and_return(commits.join("|>"))
 
       expect(execute_lane_test(match: 'v*')).to eq(true)
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.1.1")
@@ -286,7 +286,7 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
         "fix: ...|codepush: ok"
       ]
       allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v0.0.0-1-g71ce4d8')
-      allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+      allow(Fastlane::Helper::SemanticReleaseHelper).to receive(:git_log).and_return(commits.join("|>"))
 
       expect(execute_lane_test(match: 'v*')).to eq(true)
       expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.2.1")
