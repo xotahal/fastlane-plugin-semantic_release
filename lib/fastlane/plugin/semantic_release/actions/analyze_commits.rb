@@ -55,25 +55,61 @@ module Fastlane
     end
 
     class AnalyzeCommitsAction < Action
-      def self.get_last_tag(params)
+      def self.get_previous_tag_from_commitish(
+        commitish:,
+        match:,
+        debug:
+      )
         # Try to find the tag
-        command = "git describe --tags --match=#{params[:match]}"
-        Actions.sh(command, log: params[:debug])
+        command = "git describe --tags --match=#{match} #{commitish}"
+        described_tag = Actions.sh(command, log: debug)
+
+        # Tag's format is v2.3.4-5-g7685948
+        # See git describe man page for more info
+        # It can be also v2.3.4-5 if there is no commit after tag
+        tag = described_tag
+        if described_tag.split('-').length >= 3
+          tag = described_tag.split('-')[0...-2].join('-').strip
+        end
+        return tag.chomp
       rescue
         UI.message("Tag was not found for match pattern - #{params[:match]}")
         ''
       end
 
-      def self.get_last_tag_hash(params)
-        command = "git rev-list -n 1 refs/tags/#{params[:tag_name]}"
-        Actions.sh(command, log: params[:debug]).chomp
+      def self.get_hash_from_tag(tag:, debug:)
+        if tag.nil? || tag.empty?
+          return nil
+        end
+
+        command = "git rev-list -n 1 refs/tags/#{tag}"
+        Actions.sh(command, log: debug).chomp
       end
 
-      def self.get_commits_from_hash(start:, releases:, codepush_friendly:, include_scopes:, ignore_scopes:, debug:)
+      def self.get_version_from_tag(tag:, tag_version_match:)
+        if tag.nil? || tag.empty?
+          return nil
+        end
+
+        parsed_version = tag.match(tag_version_match)
+
+        if parsed_version.nil?
+          UI.user_error!("Error while parsing version from tag #{tag} by using tag_version_match - #{tag_version_match}. Please check if the tag contains version as you expect and if you are using single brackets for tag_version_match parameter.")
+        end
+
+        return parsed_version.nil? ? nil : VersionCode.new(
+          parsed_version[:major].to_i,
+          parsed_version[:minor].to_i,
+          parsed_version[:patch].to_i
+        )
+      end
+
+      def self.get_commits_from_hash(start:, recent_first:, releases:, codepush_friendly:, include_scopes:, ignore_scopes:, debug:)
         commits = Helper::SemanticReleaseHelper.git_log(
           pretty: '%s|%b|%H|%h|>',
           start: start,
-          debug: debug
+          debug: debug,
+          recent_first: recent_first
         )
         commits.split("|>")
           .lazy
@@ -98,164 +134,224 @@ module Fastlane
           end
       end
 
-      def self.get_beginning_of_next_sprint(params)
-        # command to get first commit
+      def self.get_root_hash(debug:)
         git_command = "git rev-list --max-parents=0 HEAD"
-
-        tag = get_last_tag(match: params[:match], debug: params[:debug])
-
-        # if tag doesn't exist it get's first commit or fallback tag (v*.*.*)
-        if tag.empty?
-          UI.message("It couldn't match tag for #{params[:match]}. Check if first commit can be taken as a beginning of next release")
-          # If there is no tag found we taking the first commit of current branch
-          hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
-
-          if hash_lines.to_i == 1
-            UI.message("First commit of the branch is taken as a begining of next release")
-            return {
-              # here we know this command will return 1 line
-              hash: Actions.sh(git_command, log: params[:debug]).chomp
-            }
-          end
-
-          unless params[:prevent_tag_fallback]
-            # neither matched tag and first hash could be used - as fallback we try vX.Y.Z
-            UI.message("It couldn't match tag for #{params[:match]} and couldn't use first commit. Check if tag vX.Y.Z can be taken as a begining of next release")
-            tag = get_last_tag(match: "v*", debug: params[:debug])
-          end
-
-          # even fallback tag doesn't work
-          if tag.empty?
-            return false
-          end
-        end
-
-        # Tag's format is v2.3.4-5-g7685948
-        # See git describe man page for more info
-        # It can be also v2.3.4-5 if there is no commit after tag
-        tag_name = tag
-        if tag.split('-').length >= 3
-          tag_name = tag.split('-')[0...-2].join('-').strip
-        end
-        parsed_version = tag_name.match(params[:tag_version_match])
-
-        if parsed_version.nil?
-          UI.user_error!("Error while parsing version from tag #{tag_name} by using tag_version_match - #{params[:tag_version_match]}. Please check if the tag contains version as you expect and if you are using single brackets for tag_version_match parameter.")
-        end
-
-        version = parsed_version.nil? ? nil : VersionCode.new(
-          parsed_version[:major].to_i,
-          parsed_version[:minor].to_i,
-          parsed_version[:patch].to_i
-        )
-        # Get a hash of last version tag
-        hash = get_last_tag_hash(
-          tag_name: tag_name,
-          debug: params[:debug]
-        )
-
-        UI.message("Found a tag #{tag_name} associated with version #{version}")
-
-        return {
-          hash: hash,
-          version: version
-        }
-      end
-
-      def self.calculate_versions(params, beginning)
-        # If the tag is not found we are taking HEAD as reference
-        hash = beginning[:hash] || 'HEAD'
-        last_version = beginning[:version] || VersionCode.new(0, 0, 0)
-        next_version = last_version.clone()
-
-        is_next_version_compatible_with_codepush = true
-
-        # Get commits log between last version and head
-        commits = get_commits_from_hash(
-          start: hash,
-          releases: params[:releases],
-          codepush_friendly: params[:codepush_friendly],
-          include_scopes: params[:include_scopes],
-          ignore_scopes: params[:ignore_scopes],
-          debug: params[:debug]
-        ).to_a
-
-        UI.message("Found #{commits.length} commits since last release")
-        releases = params[:releases]
-
-        format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
-        commits.each do |commit|
-          if commit[:release] == "major" || commit[:is_breaking_change]
-            next_version.major += 1
-            next_version.minor = 0
-            next_version.patch = 0
-          elsif commit[:release] == "minor"
-            next_version.minor += 1
-            next_version.patch = 0
-          elsif commit[:release] == "patch"
-            next_version.patch += 1
-          end
-
-          unless commit[:is_codepush_friendly]
-            is_next_version_compatible_with_codepush = false
-          end
-
-          UI.message("#{next_version}: #{commit[:subject]}") if params[:show_version_path]
-        end
-
-        return last_version, next_version
-      end
-
-      def self.calculate_last_codepush_incompatible_version(params)
-        git_command = "git rev-list --max-parents=0 HEAD"
-        # Begining of the branch is taken for codepush analysis
-        hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
-        hash = Actions.sh(git_command, log: params[:debug]).chomp
-        next_version = VersionCode.new(0, 0, 0)
-        incompatible_version = next_version
+        hash_lines = Actions.sh("#{git_command} | wc -l", log: debug).chomp
+        hash = Actions.sh(git_command, log: debug).chomp
 
         if hash_lines.to_i > 1
           UI.error("#{git_command} resulted to more than 1 hash")
           UI.error('This usualy happens when you pull only part of a git history. Check out how you pull the repo! "git fetch" should be enough.')
           Actions.sh(git_command, log: true).chomp
+          return nil
+        end
+
+        hash
+      end
+
+      def self.get_head_hash(debug:)
+        Actions.sh("git rev-parse HEAD", log: debug).chomp
+      end
+
+      def self.get_most_recent_version(
+        commitish:,
+        tag_version_match:,
+        match:,
+        prevent_tag_fallback:,
+        debug:
+      )
+        # command to get first commit
+        git_command = "git rev-list --max-parents=0 HEAD"
+
+        tag = get_previous_tag_from_commitish(
+          commitish: commitish,
+          match: match,
+          debug: debug
+        )
+
+        # if tag doesn't exist it get's first commit or fallback tag (v*.*.*)
+        if tag.empty?
+          UI.message("It couldn't match tag for #{match}. Check if first commit can be taken as a beginning of next release")
+          # If there is no tag found we taking the first commit of current branch
+          hash_lines = Actions.sh("#{git_command} | wc -l", log: debug).chomp
+
+          if hash_lines.to_i == 1
+            UI.message("First commit of the branch is taken as a begining of next release")
+            return {
+              # here we know this command will return 1 line
+              hash: Actions.sh(git_command, log: debug).chomp
+            }
+          end
+
+          unless prevent_tag_fallback
+            # neither matched tag and first hash could be used - as fallback we try vX.Y.Z
+            UI.message("It couldn't match tag for #{match} and couldn't use first commit. Check if tag vX.Y.Z can be taken as a begining of next release")
+            tag = get_previous_tag_from_commitish(
+              commitish: commitish,
+              match: "v*",
+              debug: debug
+            )
+          end
+
+          # even fallback tag doesn't work
+          if tag.empty?
+            return nil, nil
+          end
+        end
+        
+        version = get_version_from_tag(
+          tag: tag,
+          tag_version_match: tag_version_match
+        )
+        # Get a hash of last version tag
+        hash = get_hash_from_tag(
+          tag: tag,
+          debug: debug
+        )
+
+        return version, hash
+      end
+
+      def self.calculate_commit_version(
+        commit_hash:,
+        tag_version_match:,
+        match:,
+        prevent_tag_fallback:,
+        releases:,
+        codepush_friendly:,
+        include_scopes:,
+        ignore_scopes:,
+        print_version_for_each_commit:,
+        debug:
+      )
+        previous_version, previous_version_hash = get_most_recent_version(
+          commitish: commit_hash,
+          tag_version_match: tag_version_match,
+          match: match,
+          prevent_tag_fallback: prevent_tag_fallback,
+          debug: debug
+        ) || get_root_hash(debug)
+
+        commit_version = previous_version.clone()
+
+        get_commits_from_hash(
+          start: previous_version_hash,
+          recent_first: false,
+          releases: releases,
+          codepush_friendly: codepush_friendly,
+          include_scopes: include_scopes,
+          ignore_scopes: ignore_scopes,
+          debug: debug,
+        )
+          .map do |commit|
+            if commit[:release] == "major" || commit[:is_breaking_change]
+              commit_version.major += 1
+              commit_version.minor = 0
+              commit_version.patch = 0
+            elsif commit[:release] == "minor"
+              commit_version.minor += 1
+              commit_version.patch = 0
+            elsif commit[:release] == "patch"
+              commit_version.patch += 1
+            end
+
+            if print_version_for_each_commit
+              UI.message("#{commit_version}: #{commit[:subject]}")
+            end
+
+            commit
+
+          # Note that selecting _after_ mapping will cause the enumerator to
+          # be driven the extra step needed to match the requested commit hash.
+          end.take_while do |commit| 
+            commit[:hash] != commit_hash
+          end.force
+
+        return commit_version
+      end
+
+      def self.calculate_next_version(
+        tag_version_match:,
+        match:,
+        prevent_tag_fallback:,
+        releases:,
+        codepush_friendly:,
+        include_scopes:,
+        ignore_scopes:,
+        print_version_for_each_commit:,
+        debug:
+      )
+        calculate_commit_version(
+          commit_hash: get_head_hash(debug: debug),
+          tag_version_match: tag_version_match,
+          match: match, 
+          prevent_tag_fallback: prevent_tag_fallback,
+          releases: releases,
+          codepush_friendly: codepush_friendly,
+          include_scopes: include_scopes,
+          ignore_scopes: ignore_scopes,
+          print_version_for_each_commit: print_version_for_each_commit,
+          debug: debug
+        )
+      end
+
+      def self.calculate_last_codepush_incompatible_version(
+        tag_version_match:,
+        match:,
+        prevent_tag_fallback:,
+        releases:,
+        codepush_friendly:,
+        include_scopes:,
+        ignore_scopes:,
+        debug:
+      )
+        hash = get_root_hash(debug: debug)
+        if hash.nil?
           return false
         end
 
-        # Get commits log between last version and head
+        incompatible_hash = nil
+
         get_commits_from_hash(
           start: hash,
-          releases: params[:releases],
-          codepush_friendly: params[:codepush_friendly],
-          include_scopes: params[:include_scopes],
-          ignore_scopes: params[:ignore_scopes],
-          debug: params[:debug]
+          recent_first: true,
+          releases: releases,
+          codepush_friendly: codepush_friendly,
+          include_scopes: include_scopes,
+          ignore_scopes: ignore_scopes,
+          debug: debug
         ).each do |commit|
-          if commit[:release] == "major" || commit[:is_breaking_change]
-            next_version.major += 1
-            next_version.minor = 0
-            next_version.patch = 0
-          elsif commit[:release] == "minor"
-            next_version.minor += 1
-            next_version.patch = 0
-          elsif commit[:release] == "patch"
-            next_version.patch += 1
-          end
-
-          unless commit[:is_codepush_friendly]
-            incompatible_version = next_version.clone()
+          if !commit[:is_codepush_friendly]
+            incompatible_hash = commit[:hash]
+            break
           end
         end
 
-        incompatible_version
+        if incompatible_hash.nil?
+          return VersionCode.new(0, 0, 0)
+        end
+
+        calculate_commit_version(
+          commit_hash: incompatible_hash,
+          tag_version_match: tag_version_match,
+          match: match, 
+          prevent_tag_fallback: prevent_tag_fallback,
+          releases: releases,
+          codepush_friendly: codepush_friendly,
+          include_scopes: include_scopes,
+          ignore_scopes: ignore_scopes,
+          print_version_for_each_commit: false,
+          debug: debug
+        ) || false
       end
 
-      def self.update_lane_context(beginning, last_version, next_version, last_codepush_incompatible_version)
+      def self.update_lane_context(last_version, last_version_hash, next_version, last_codepush_incompatible_version)
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = next_version > last_version
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = last_version >= last_codepush_incompatible_version
         
         # Last release analysis
-        Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = beginning[:hash] || "HEAD"
+        Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = last_version_hash
         Actions.lane_context[SharedValues::RELEASE_LAST_MAJOR_VERSION] = last_version.major
         Actions.lane_context[SharedValues::RELEASE_LAST_MINOR_VERSION] = last_version.minor
         Actions.lane_context[SharedValues::RELEASE_LAST_PATCH_VERSION] = last_version.patch
@@ -271,18 +367,40 @@ module Fastlane
       end
 
       def self.run(params)
-        beginning = get_beginning_of_next_sprint(params)
-        unless beginning
-          UI.error('It could not find a begining of this sprint. How to fix this:')
-          UI.error('-- ensure there is only one commit with --max-parents=0 (this command should return one line: "git rev-list --max-parents=0 HEAD")')
-          UI.error('-- tell us explicitely where the release starts by adding tag like this: vX.Y.Z (where X.Y.Z is version from which it starts computing next version number)')
-          return false
-        end
+        last_version, last_version_hash = get_most_recent_version(
+          commitish: "HEAD",
+          tag_version_match: params[:tag_version_match],
+          match: params[:match],
+          prevent_tag_fallback: params[:prevent_tag_fallback],
+          debug: params[:debug]
+        )
+        UI.message("Last version: #{last_version}")
 
-        last_version, next_version = calculate_versions(params, beginning)
-        last_codepush_incompatible_version = calculate_last_codepush_incompatible_version(params)
+        next_version = calculate_next_version(
+          tag_version_match: params[:tag_version_match],
+          match: params[:match],
+          prevent_tag_fallback: params[:prevent_tag_fallback],
+          releases: params[:releases],
+          codepush_friendly: params[:codepush_friendly],
+          include_scopes: params[:include_scopes],
+          ignore_scopes: params[:ignore_scopes],
+          print_version_for_each_commit: params[:show_version_path],
+          debug: params[:debug]
+        )
+        UI.message("Next version: #{next_version}")
 
-        update_lane_context(beginning, last_version, next_version, last_codepush_incompatible_version)
+        last_codepush_incompatible_version = calculate_last_codepush_incompatible_version(
+          tag_version_match: params[:tag_version_match],
+          match: params[:match],
+          prevent_tag_fallback: params[:prevent_tag_fallback],
+          releases: params[:releases],
+          codepush_friendly: params[:codepush_friendly],
+          include_scopes: params[:include_scopes],
+          ignore_scopes: params[:ignore_scopes],
+          debug: params[:debug]
+        )
+
+        update_lane_context(last_version, last_version_hash, next_version, last_codepush_incompatible_version)
 
         if next_version > last_version
           UI.success("Next version (#{next_version}) is higher than last version (#{last_version}). This version should be released.")

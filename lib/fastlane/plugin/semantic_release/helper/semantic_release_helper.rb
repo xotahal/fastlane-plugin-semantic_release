@@ -16,7 +16,7 @@ module Fastlane
       # as `Helper::SemanticReleaseHelper.your_method`
       #
       def self.git_log(params)
-        command = "git log --pretty='#{params[:pretty]}' --reverse #{params[:start]}..HEAD"
+        command = "git log --pretty='#{params[:pretty]}' #{params[:recent_first] ? '' : '--reverse'} #{params[:start]}..HEAD"
         Actions.sh(command, log: params[:debug]).chomp
       end
 
