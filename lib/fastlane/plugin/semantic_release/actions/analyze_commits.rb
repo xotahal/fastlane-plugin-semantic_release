@@ -179,7 +179,8 @@ module Fastlane
             commit_subject: subject,
             commit_body: parts[1],
             releases: releases,
-            pattern: format_pattern
+            pattern: format_pattern,
+            codepush_friendly: params[:codepush_friendly]
           )
 
           next if Helper::SemanticReleaseHelper.should_exclude_commit(
