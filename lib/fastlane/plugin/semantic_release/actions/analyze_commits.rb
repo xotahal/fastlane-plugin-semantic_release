@@ -142,17 +142,7 @@ module Fastlane
         }
       end
 
-      def self.is_releasable(params)
-        # Hash of the commit where is the last version
-        beginning = get_beginning_of_next_sprint(params)
-
-        unless beginning
-          UI.error('It could not find a begining of this sprint. How to fix this:')
-          UI.error('-- ensure there is only one commit with --max-parents=0 (this command should return one line: "git rev-list --max-parents=0 HEAD")')
-          UI.error('-- tell us explicitely where the release starts by adding tag like this: vX.Y.Z (where X.Y.Z is version from which it starts computing next version number)')
-          return false
-        end
-
+      def self.calculate_versions(params, beginning)
         # If the tag is not found we are taking HEAD as reference
         hash = beginning[:hash] || 'HEAD'
         last_version = beginning[:version] || VersionCode.new(0, 0, 0)
@@ -207,36 +197,16 @@ module Fastlane
           UI.message("#{next_version}: #{subject}") if params[:show_version_path]
         end
 
-        is_next_version_releasable = next_version > last_version
-
-        Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
-        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
-        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = is_next_version_compatible_with_codepush
-        # Last release analysis
-        Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
-        Actions.lane_context[SharedValues::RELEASE_LAST_MAJOR_VERSION] = last_version.major
-        Actions.lane_context[SharedValues::RELEASE_LAST_MINOR_VERSION] = last_version.minor
-        Actions.lane_context[SharedValues::RELEASE_LAST_PATCH_VERSION] = last_version.patch
-        Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = last_version.to_s
-        # Next release analysis
-        Actions.lane_context[SharedValues::RELEASE_NEXT_MAJOR_VERSION] = next_version.major
-        Actions.lane_context[SharedValues::RELEASE_NEXT_MINOR_VERSION] = next_version.minor
-        Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = next_version.patch
-        Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = next_version.to_s
-
-        success_message = "Next version (#{next_version}) is higher than last version (#{last_version}). This version should be released."
-        UI.success(success_message) if is_next_version_releasable
-
-        is_next_version_releasable
+        return last_version, next_version
       end
 
-      def self.is_codepush_friendly(params)
+      def self.calculate_last_codepush_incompatible_version(params)
         git_command = "git rev-list --max-parents=0 HEAD"
         # Begining of the branch is taken for codepush analysis
         hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
         hash = Actions.sh(git_command, log: params[:debug]).chomp
         next_version = VersionCode.new(0, 0, 0)
-        last_incompatible_codepush_version = next_version
+        incompatible_version = next_version
 
         if hash_lines.to_i > 1
           UI.error("#{git_command} resulted to more than 1 hash")
@@ -277,18 +247,53 @@ module Fastlane
           end
 
           unless commit[:is_codepush_friendly]
-            last_incompatible_codepush_version = next_version.clone()
+            incompatible_version = next_version.clone()
           end
         end
 
-        Actions.lane_context[SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION] = last_incompatible_codepush_version.to_s
+        incompatible_version
+      end
+
+      def self.update_lane_context(beginning, last_version, next_version, last_codepush_incompatible_version)
+        Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = next_version > last_version
+        Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = last_version >= last_codepush_incompatible_version
+        
+        # Last release analysis
+        Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = beginning[:hash] || "HEAD"
+        Actions.lane_context[SharedValues::RELEASE_LAST_MAJOR_VERSION] = last_version.major
+        Actions.lane_context[SharedValues::RELEASE_LAST_MINOR_VERSION] = last_version.minor
+        Actions.lane_context[SharedValues::RELEASE_LAST_PATCH_VERSION] = last_version.patch
+        Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = last_version.to_s
+        
+        # Next release analysis
+        Actions.lane_context[SharedValues::RELEASE_NEXT_MAJOR_VERSION] = next_version.major
+        Actions.lane_context[SharedValues::RELEASE_NEXT_MINOR_VERSION] = next_version.minor
+        Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = next_version.patch
+        Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = next_version.to_s
+
+        Actions.lane_context[SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION] = last_codepush_incompatible_version.to_s
       end
 
       def self.run(params)
-        is_next_version_releasable = is_releasable(params)
-        is_codepush_friendly(params)
+        beginning = get_beginning_of_next_sprint(params)
+        unless beginning
+          UI.error('It could not find a begining of this sprint. How to fix this:')
+          UI.error('-- ensure there is only one commit with --max-parents=0 (this command should return one line: "git rev-list --max-parents=0 HEAD")')
+          UI.error('-- tell us explicitely where the release starts by adding tag like this: vX.Y.Z (where X.Y.Z is version from which it starts computing next version number)')
+          return false
+        end
 
-        is_next_version_releasable
+        last_version, next_version = calculate_versions(params, beginning)
+        last_codepush_incompatible_version = calculate_last_codepush_incompatible_version(params)
+
+        update_lane_context(beginning, last_version, next_version, last_codepush_incompatible_version)
+
+        if next_version > last_version
+          UI.success("Next version (#{next_version}) is higher than last version (#{last_version}). This version should be released.")
+        end
+
+        next_version > last_version
       end
 
       #####################################################
