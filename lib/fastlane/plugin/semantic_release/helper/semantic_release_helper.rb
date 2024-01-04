@@ -84,35 +84,6 @@ module Fastlane
 
         result
       end
-
-      def self.semver_gt(first, second)
-        first_major = (first.split('.')[0] || 0).to_i
-        first_minor = (first.split('.')[1] || 0).to_i
-        first_patch = (first.split('.')[2] || 0).to_i
-
-        second_major = (second.split('.')[0] || 0).to_i
-        second_minor = (second.split('.')[1] || 0).to_i
-        second_patch = (second.split('.')[2] || 0).to_i
-
-        # Check if next version is higher then last version
-        if first_major > second_major
-          return true
-        elsif first_major == second_major
-          if first_minor > second_minor
-            return true
-          elsif first_minor == second_minor
-            if first_patch > second_patch
-              return true
-            end
-          end
-        end
-
-        return false
-      end
-
-      def self.semver_lt(first, second)
-        return !semver_gt(first, second)
-      end
     end
   end
 end
