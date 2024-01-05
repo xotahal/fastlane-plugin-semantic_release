@@ -231,7 +231,7 @@ module Fastlane
           match: match,
           prevent_tag_fallback: prevent_tag_fallback,
           debug: debug
-        ) || get_root_hash(debug)
+        ) || [Version.new(0, 0, 0), get_root_hash(debug)]
 
         commit_version = previous_version.clone()
 
