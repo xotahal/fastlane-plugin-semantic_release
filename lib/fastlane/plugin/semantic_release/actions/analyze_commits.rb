@@ -73,7 +73,7 @@ module Fastlane
         end
         return tag.chomp
       rescue
-        UI.message("Tag was not found for match pattern - #{params[:match]}")
+        UI.message("Tag was not found for match pattern - #{match}")
         ''
       end
 
