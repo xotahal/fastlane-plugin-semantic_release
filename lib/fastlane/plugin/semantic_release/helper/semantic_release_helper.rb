@@ -16,7 +16,7 @@ module Fastlane
       # as `Helper::SemanticReleaseHelper.your_method`
       #
       def self.git_log(params)
-        command = "git log --pretty='#{params[:pretty]}' --reverse #{params[:start]}..HEAD"
+        command = "git log --pretty='#{params[:pretty]}' #{params[:recent_first] ? '' : '--reverse'} #{params[:start]}..HEAD"
         Actions.sh(command, log: params[:debug]).chomp
       end
 
@@ -35,6 +35,7 @@ module Fastlane
       end
 
       def self.parse_commit(params)
+        commit_hash = params[:commit_hash]
         commit_subject = params[:commit_subject].to_s.strip
         commit_body = params[:commit_body]
         releases = params[:releases]
@@ -45,6 +46,7 @@ module Fastlane
 
         matched = commit_subject.match(pattern)
         result = {
+          hash: commit_hash,
           is_valid: false,
           subject: commit_subject,
           is_merge: !(commit_subject =~ /^Merge/).nil?,
@@ -83,35 +85,6 @@ module Fastlane
         end
 
         result
-      end
-
-      def self.semver_gt(first, second)
-        first_major = (first.split('.')[0] || 0).to_i
-        first_minor = (first.split('.')[1] || 0).to_i
-        first_patch = (first.split('.')[2] || 0).to_i
-
-        second_major = (second.split('.')[0] || 0).to_i
-        second_minor = (second.split('.')[1] || 0).to_i
-        second_patch = (second.split('.')[2] || 0).to_i
-
-        # Check if next version is higher then last version
-        if first_major > second_major
-          return true
-        elsif first_major == second_major
-          if first_minor > second_minor
-            return true
-          elsif first_minor == second_minor
-            if first_patch > second_patch
-              return true
-            end
-          end
-        end
-
-        return false
-      end
-
-      def self.semver_lt(first, second)
-        return !semver_gt(first, second)
       end
     end
   end

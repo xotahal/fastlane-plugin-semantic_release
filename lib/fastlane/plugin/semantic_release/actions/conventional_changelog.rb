@@ -11,7 +11,8 @@ module Fastlane
         commits = Helper::SemanticReleaseHelper.git_log(
           pretty: '%s|%b|%H|%h|%an|%at|>',
           start: params[:hash],
-          debug: params[:debug]
+          debug: params[:debug],
+          recent_first: false
         )
         commits.split("|>")
       end
@@ -180,6 +181,7 @@ module Fastlane
           splitted = line.split("|")
 
           commit = Helper::SemanticReleaseHelper.parse_commit(
+            commit_hash: splitted[2],
             commit_subject: splitted[0],
             commit_body: splitted[1],
             pattern: format_pattern
