@@ -130,8 +130,38 @@ module Fastlane
         result
       end
 
+      def self.validate_sections(sections)
+        # Ensure sections is a hash
+        unless sections.is_a?(Hash)
+          UI.user_error!("sections parameter must be a Hash, got #{sections.class}")
+        end
+
+        # Ensure no_type section exists as it's used as fallback for commits without scope
+        unless sections.key?(:no_type)
+          UI.user_error!("sections parameter must include a :no_type key for commits without scope. " \
+                         "Add 'no_type: \"Other work\"' to your sections configuration.")
+        end
+
+        # Ensure no_type value is not nil or empty
+        if sections[:no_type].nil? || sections[:no_type].to_s.strip.empty?
+          UI.user_error!("sections[:no_type] cannot be nil or empty. " \
+                         "Provide a meaningful section name like 'Other work'.")
+        end
+      end
+
+      def self.normalize_scope(scope, fallback_scope)
+        # Normalize scope by trimming whitespace and handling empty/nil values
+        normalized = scope&.strip
+        if normalized.nil? || normalized.empty?
+          fallback_scope
+        else
+          normalized
+        end
+      end
+
       def self.note_builder_grouped(format, commits, version, commit_url, params)
         sections = params[:sections]
+        validate_sections(sections)
         lines = []
 
         if params[:display_title] == true
@@ -144,26 +174,45 @@ module Fastlane
           commits_in_type = commits_by_type[type]
           next if commits_in_type.nil? || commits_in_type.size == 0
 
+          # Filter out merge commits at the type level first
+          non_merge_commits_in_type = commits_in_type.reject { |commit| commit[:is_merge] }
+          next if non_merge_commits_in_type.empty?
+
           type_text = style_text_grouped(sections[type.to_sym], format, "heading").to_s
           lines << type_text
 
-          commits_by_scope = commits_in_type.group_by { |c| c[:scope]&.strip || sections[:no_type] }
-          commits_by_scope.each do |plain_scope, commits_in_scope|
+          commits_by_scope = non_merge_commits_in_type.group_by { |c| normalize_scope(c[:scope], sections[:no_type]) }
+
+          # Sort scopes to ensure consistent ordering: preserve order of first appearance, but put fallback scope last
+          scope_order = {}
+          non_merge_commits_in_type.each_with_index do |commit, index|
+            scope = normalize_scope(commit[:scope], sections[:no_type])
+            scope_order[scope] ||= index
+          end
+
+          sorted_scopes = commits_by_scope.keys.sort do |a, b|
+            if a == sections[:no_type] && b != sections[:no_type]
+              1  # fallback scope comes last
+            elsif a != sections[:no_type] && b == sections[:no_type]
+              -1  # named scope comes first
+            else
+              scope_order[a] <=> scope_order[b]  # preserve order of first appearance
+            end
+          end
+
+          sorted_scopes.each do |plain_scope|
+            commits_in_scope = commits_by_scope[plain_scope]
             scope = style_text_grouped("#{plain_scope}:", format, "bold").to_s
 
             is_single_commit = commits_in_scope.size == 1
             if is_single_commit
               commit = commits_in_scope.first
-              next if commit[:is_merge]
-
               commit_text = build_commit_grouped(params, commit, is_single_commit)
               lines << "#{scope} #{commit_text}"
             else
               lines << scope
 
               commits_in_scope.each do |commit|
-                next if commit[:is_merge]
-
                 commit_text = build_commit_grouped(params, commit, is_single_commit)
                 lines << commit_text
               end

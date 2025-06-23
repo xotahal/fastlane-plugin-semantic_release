@@ -448,6 +448,148 @@ describe Fastlane::Actions::ConventionalChangelogAction do
           expect(result).to eq(expected_result)
         end
       end
+
+      # Edge case tests for grouping functionality
+      context "edge cases for grouping" do
+        describe "empty and whitespace scopes" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: '', title: 'Feature with empty scope'),
+              commit(type: 'feat', scope: '   ', title: 'Feature with whitespace scope'),
+              commit(type: 'feat', scope: 'ValidScope', title: 'Feature with valid scope'),
+              commit(type: 'feat', title: 'Feature without scope')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should handle empty and whitespace scopes correctly in markdown format" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **ValidScope:** Feature with valid scope #{HASH_MARKDOWN}\n"\
+                              "- **Other work:**\n"\
+                              "   - Feature with empty scope #{HASH_MARKDOWN}\n"\
+                              "   - Feature with whitespace scope #{HASH_MARKDOWN}\n"\
+                              "   - Feature without scope #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+        end
+
+        describe "all merge commits in scope" do
+          before do
+            commits = [
+              "Merge branch 'feature'||long_hash|short_hash|Jiri Otahal|time",
+              "Merge pull request #123||long_hash|short_hash|Jiri Otahal|time",
+              commit(type: 'feat', scope: 'ValidScope', title: 'Valid feature')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should not create empty scope groups when all commits are merge commits" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **ValidScope:** Valid feature #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+        end
+
+        describe "mixed merge and regular commits in same scope" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: 'MixedScope', title: 'First feature'),
+              "Merge branch 'feature'||long_hash|short_hash|Jiri Otahal|time",
+              commit(type: 'feat', scope: 'MixedScope', title: 'Second feature')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should filter out merge commits but keep regular commits in same scope" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **MixedScope:**\n"\
+                              "   - First feature #{HASH_MARKDOWN}\n"\
+                              "   - Second feature #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+        end
+
+        describe "scope with leading/trailing whitespace" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: '  TrimScope  ', title: 'Feature with padded scope'),
+              commit(type: 'feat', scope: 'TrimScope', title: 'Feature with clean scope')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should group commits with trimmed scopes together" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **TrimScope:**\n"\
+                              "   - Feature with padded scope #{HASH_MARKDOWN}\n"\
+                              "   - Feature with clean scope #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+        end
+
+        describe "missing sections configuration" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: 'TestScope', title: 'Test feature')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should raise error when no_type section is missing" do
+            # Test with sections that don't include no_type
+            custom_sections = {
+              feat: "Features",
+              fix: "Bug fixes"
+              # no_type is missing
+            }
+
+            expect {
+              execute_lane_test(group_by_scope: true, sections: custom_sections)
+            }.to raise_error(FastlaneCore::Interface::FastlaneError, /sections parameter must include a :no_type key/)
+          end
+
+          it "should raise error when no_type section is empty" do
+            # Test with empty no_type section
+            custom_sections = {
+              feat: "Features",
+              fix: "Bug fixes",
+              no_type: ""
+            }
+
+            expect {
+              execute_lane_test(group_by_scope: true, sections: custom_sections)
+            }.to raise_error(FastlaneCore::Interface::FastlaneError, /sections\[:no_type\] cannot be nil or empty/)
+          end
+
+          it "should raise error when sections is not a hash" do
+            expect {
+              execute_lane_test(group_by_scope: true, sections: "invalid")
+            }.to raise_error(FastlaneCore::Interface::FastlaneError, /value must be a Hash/)
+          end
+        end
+      end
     end
   end
 end
