@@ -151,7 +151,7 @@ module Fastlane
 
       def self.normalize_scope(scope, fallback_scope)
         # Normalize scope by trimming whitespace and handling empty/nil values
-        normalized = scope&.strip
+        normalized = scope.nil? ? nil : scope.strip
         if normalized.nil? || normalized.empty?
           fallback_scope
         else

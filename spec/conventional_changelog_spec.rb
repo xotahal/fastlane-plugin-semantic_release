@@ -565,9 +565,9 @@ describe Fastlane::Actions::ConventionalChangelogAction do
               # no_type is missing
             }
 
-            expect {
+            expect do
               execute_lane_test(group_by_scope: true, sections: custom_sections)
-            }.to raise_error(FastlaneCore::Interface::FastlaneError, /sections parameter must include a :no_type key/)
+            end.to raise_error(FastlaneCore::Interface::FastlaneError, /sections parameter must include a :no_type key/)
           end
 
           it "should raise error when no_type section is empty" do
@@ -578,15 +578,15 @@ describe Fastlane::Actions::ConventionalChangelogAction do
               no_type: ""
             }
 
-            expect {
+            expect do
               execute_lane_test(group_by_scope: true, sections: custom_sections)
-            }.to raise_error(FastlaneCore::Interface::FastlaneError, /sections\[:no_type\] cannot be nil or empty/)
+            end.to raise_error(FastlaneCore::Interface::FastlaneError, /sections\[:no_type\] cannot be nil or empty/)
           end
 
           it "should raise error when sections is not a hash" do
-            expect {
+            expect do
               execute_lane_test(group_by_scope: true, sections: "invalid")
-            }.to raise_error(FastlaneCore::Interface::FastlaneError, /value must be a Hash/)
+            end.to raise_error(FastlaneCore::Interface::FastlaneError, /value must be a Hash/)
           end
         end
       end
