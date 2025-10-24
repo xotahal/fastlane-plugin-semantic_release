@@ -192,6 +192,21 @@ module Fastlane
         end
       end
 
+      def self.capitalize_scope(scope)
+        # Capitalize the first letter of the scope for display
+        # Examples: "offline" -> "Offline", "OFFLINE" -> "Offline", "PlaylistRepository" -> "PlaylistRepository"
+        return nil if scope.nil?
+        return scope if scope.empty?
+
+        # If the scope is all uppercase (like "OFFLINE"), convert to title case
+        if scope == scope.upcase && scope.length > 1
+          scope[0].upcase + scope[1..-1].downcase
+        else
+          # Otherwise, just ensure first letter is uppercase
+          scope[0].upcase + scope[1..-1]
+        end
+      end
+
       def self.note_builder_grouped(format, commits, version, commit_url, params)
         sections = params[:sections]
         validate_sections(sections)
@@ -257,7 +272,9 @@ module Fastlane
             commits_in_scope = commits_by_normalized_scope[normalized_scope]
             # Use the canonical display scope (from normalize_scope_for_grouping)
             display_scope = normalized_to_display[normalized_scope]
-            scope = style_text_grouped("#{display_scope}:", format, "bold").to_s
+            # Capitalize the first letter of the scope for display
+            capitalized_scope = capitalize_scope(display_scope)
+            scope = style_text_grouped("#{capitalized_scope}:", format, "bold").to_s
 
             is_single_commit = commits_in_scope.size == 1
             if is_single_commit

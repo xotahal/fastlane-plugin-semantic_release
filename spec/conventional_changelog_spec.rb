@@ -564,8 +564,8 @@ describe Fastlane::Actions::ConventionalChangelogAction do
             expected_result = "# 1.0.2 (2019-05-25)\n\n"\
                               "### Features\n"\
                               "- **Announcements:** Feature with mixed case scope #{HASH_MARKDOWN}\n"\
-                              "- **cache:** Feature with lowercase scope #{HASH_MARKDOWN}\n"\
-                              "- **OFFLINE:** Feature with uppercase scope #{HASH_MARKDOWN}\n"\
+                              "- **Cache:** Feature with lowercase scope #{HASH_MARKDOWN}\n"\
+                              "- **Offline:** Feature with uppercase scope #{HASH_MARKDOWN}\n"\
                               "- **Schedule:** Feature with padded scope #{HASH_MARKDOWN}"
 
             result = execute_lane_test(group_by_scope: true)
@@ -576,8 +576,8 @@ describe Fastlane::Actions::ConventionalChangelogAction do
             expected_result = "1.0.2 (2019-05-25)\n\n"\
                               "Features:\n"\
                               "- Announcements: Feature with mixed case scope #{HASH_PLAIN}\n"\
-                              "- cache: Feature with lowercase scope #{HASH_PLAIN}\n"\
-                              "- OFFLINE: Feature with uppercase scope #{HASH_PLAIN}\n"\
+                              "- Cache: Feature with lowercase scope #{HASH_PLAIN}\n"\
+                              "- Offline: Feature with uppercase scope #{HASH_PLAIN}\n"\
                               "- Schedule: Feature with padded scope #{HASH_PLAIN}"
 
             result = execute_lane_test(group_by_scope: true, format: 'plain')
@@ -601,7 +601,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
           it "should group all case variations of the same scope together" do
             expected_result = "# 1.0.2 (2019-05-25)\n\n"\
                               "### Features\n"\
-                              "- **offline:**\n"\
+                              "- **Offline:**\n"\
                               "   - First offline feature #{HASH_MARKDOWN}\n"\
                               "   - Second offline feature #{HASH_MARKDOWN}\n"\
                               "   - Third offline feature #{HASH_MARKDOWN}\n"\
@@ -715,9 +715,9 @@ describe Fastlane::Actions::ConventionalChangelogAction do
           it "should map Cleanup and Refactor to canonical 'refactor' scope" do
             expected_result = "# 1.0.2 (2019-05-25)\n\n"\
                               "### Features\n"\
-                              "- **any:** Any other work #{HASH_MARKDOWN}\n"\
+                              "- **Any:** Any other work #{HASH_MARKDOWN}\n"\
                               "- **Cache:** Cache optimization #{HASH_MARKDOWN}\n"\
-                              "- **refactor:**\n"\
+                              "- **Refactor:**\n"\
                               "   - Refactor authentication module #{HASH_MARKDOWN}\n"\
                               "   - Refactor database layer #{HASH_MARKDOWN}\n"\
                               "   - Cleanup unused imports #{HASH_MARKDOWN}\n"\
@@ -739,7 +739,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
 
             expected_result = "# 1.0.2 (2019-05-25)\n\n"\
                               "### Features\n"\
-                              "- **refactor:**\n"\
+                              "- **Refactor:**\n"\
                               "   - Lowercase refactor #{HASH_MARKDOWN}\n"\
                               "   - Uppercase cleanup #{HASH_MARKDOWN}\n"\
                               "   - Mixed case refactor #{HASH_MARKDOWN}\n"\
@@ -768,6 +768,39 @@ describe Fastlane::Actions::ConventionalChangelogAction do
             expect do
               execute_lane_test(group_by_scope: true, sections: "invalid")
             end.to raise_error(FastlaneCore::Interface::FastlaneError, /value must be a Hash/)
+          end
+        end
+
+        describe "capitalized types" do
+          before do
+            commits = [
+              commit(type: 'Refactor', scope: 'Playlist', title: 'Rename PlaylistLocalService to PlaylistCache'),
+              commit(type: 'REFACTOR', scope: 'PlaylistRepository', title: 'Simplify playlist fetching logic'),
+              commit(type: 'Fix', scope: 'Cache', title: 'Improve cache mechanism'),
+              commit(type: 'FIX', scope: 'Offline', title: 'File downloads sometimes skips some files'),
+              commit(type: 'Feat', scope: 'Offline', title: 'Implement track download orchestration'),
+              commit(type: 'FEAT', scope: 'Schedule', title: 'Precache all playlist schedule media')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should recognize capitalized types and group them correctly" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **Offline:** Implement track download orchestration #{HASH_MARKDOWN}\n"\
+                              "- **Schedule:** Precache all playlist schedule media #{HASH_MARKDOWN}\n"\
+                              "### Bug fixes\n"\
+                              "- **Cache:** Improve cache mechanism #{HASH_MARKDOWN}\n"\
+                              "- **Offline:** File downloads sometimes skips some files #{HASH_MARKDOWN}\n"\
+                              "### Code refactoring\n"\
+                              "- **Playlist:** Rename PlaylistLocalService to PlaylistCache #{HASH_MARKDOWN}\n"\
+                              "- **PlaylistRepository:** Simplify playlist fetching logic #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+
+            expect(result).to eq(expected_result)
           end
         end
       end
