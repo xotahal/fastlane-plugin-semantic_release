@@ -697,6 +697,60 @@ describe Fastlane::Actions::ConventionalChangelogAction do
             end.to raise_error(FastlaneCore::Interface::FastlaneError, /sections parameter must include a :no_type key/)
           end
 
+        describe "semantic scope mapping" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: 'Refactor', title: 'Refactor authentication module'),
+              commit(type: 'feat', scope: 'REFACTOR', title: 'Refactor database layer'),
+              commit(type: 'feat', scope: 'Cleanup', title: 'Cleanup unused imports'),
+              commit(type: 'feat', scope: 'CLEANUP', title: 'Cleanup test files'),
+              commit(type: 'feat', scope: 'Any', title: 'Any other work'),
+              commit(type: 'feat', scope: 'Cache', title: 'Cache optimization')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should map Cleanup and Refactor to canonical 'refactor' scope" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **any:** Any other work #{HASH_MARKDOWN}\n"\
+                              "- **Cache:** Cache optimization #{HASH_MARKDOWN}\n"\
+                              "- **refactor:**\n"\
+                              "   - Refactor authentication module #{HASH_MARKDOWN}\n"\
+                              "   - Refactor database layer #{HASH_MARKDOWN}\n"\
+                              "   - Cleanup unused imports #{HASH_MARKDOWN}\n"\
+                              "   - Cleanup test files #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+
+          it "should handle mixed case variations of Cleanup and Refactor" do
+            commits = [
+              commit(type: 'feat', scope: 'refactor', title: 'Lowercase refactor'),
+              commit(type: 'feat', scope: 'CLEANUP', title: 'Uppercase cleanup'),
+              commit(type: 'feat', scope: 'Refactor', title: 'Mixed case refactor'),
+              commit(type: 'feat', scope: 'cleanup', title: 'Lowercase cleanup')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **refactor:**\n"\
+                              "   - Lowercase refactor #{HASH_MARKDOWN}\n"\
+                              "   - Uppercase cleanup #{HASH_MARKDOWN}\n"\
+                              "   - Mixed case refactor #{HASH_MARKDOWN}\n"\
+                              "   - Lowercase cleanup #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+        end
+
+
           it "should raise error when no_type section is empty" do
             # Test with empty no_type section
             custom_sections = {

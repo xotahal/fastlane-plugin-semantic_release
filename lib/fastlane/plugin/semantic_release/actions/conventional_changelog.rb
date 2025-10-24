@@ -162,7 +162,34 @@ module Fastlane
       def self.normalize_scope_for_grouping(scope)
         # Normalize scope to lowercase for consistent grouping
         # This ensures "cache", "Cache", and "CACHE" all group together
-        scope.nil? ? nil : scope.downcase
+        return nil if scope.nil?
+
+        normalized = scope.downcase
+
+        # Map semantically related scopes to a canonical form
+        # "Cleanup" and "Refactor" are grouped together as "refactor"
+        case normalized
+        when /^cleanup/
+          'refactor'
+        when /^refactor/
+          'refactor'
+        when /^any/
+          'any'
+        else
+          normalized
+        end
+      end
+
+      def self.is_semantic_mapping?(scope)
+        # Check if a scope has a semantic mapping (e.g., Cleanup -> refactor)
+        return false if scope.nil?
+        normalized = scope.downcase
+        case normalized
+        when /^cleanup/, /^refactor/, /^any/
+          true
+        else
+          false
+        end
       end
 
       def self.note_builder_grouped(format, commits, version, commit_url, params)
@@ -188,18 +215,30 @@ module Fastlane
           lines << type_text
 
           # Group commits by normalized scope (lowercase) for consistent grouping
-          # but preserve the original scope for display
+          # but preserve the original scope for display (unless it's a semantic mapping)
           commits_by_normalized_scope = non_merge_commits_in_type.group_by do |c|
             normalized = normalize_scope(c[:scope], sections[:no_type])
             normalize_scope_for_grouping(normalized)
           end
 
-          # Build a map of normalized scope -> original scope (use first occurrence)
-          normalized_to_original = {}
+          # Build a map of normalized scope -> display scope
+          # For semantic mappings (Cleanup->refactor, Refactor->refactor), use the canonical form
+          # For other scopes, use the original scope
+          normalized_to_display = {}
           non_merge_commits_in_type.each do |commit|
             normalized = normalize_scope(commit[:scope], sections[:no_type])
             normalized_for_grouping = normalize_scope_for_grouping(normalized)
-            normalized_to_original[normalized_for_grouping] ||= normalized
+
+            # Determine display scope
+            if is_semantic_mapping?(normalized)
+              # This is a semantic mapping (e.g., Cleanup -> refactor)
+              display_scope = normalized_for_grouping
+            else
+              # Use the original scope for display
+              display_scope = normalized
+            end
+
+            normalized_to_display[normalized_for_grouping] ||= display_scope
           end
 
           # Sort scopes alphabetically, but put fallback scope last
@@ -216,8 +255,8 @@ module Fastlane
 
           sorted_normalized_scopes.each do |normalized_scope|
             commits_in_scope = commits_by_normalized_scope[normalized_scope]
-            # Use the original scope for display
-            display_scope = normalized_to_original[normalized_scope]
+            # Use the canonical display scope (from normalize_scope_for_grouping)
+            display_scope = normalized_to_display[normalized_scope]
             scope = style_text_grouped("#{display_scope}:", format, "bold").to_s
 
             is_single_commit = commits_in_scope.size == 1
