@@ -370,7 +370,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
           allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
         end
 
-        it "should group by type and then by scope" do
+        it "should group by type and then by scope, sorted alphabetically" do
           expected_result = "# 1.0.2 (2019-05-25)\n\n"\
                             "### Features\n"\
                             "- **Scope 1:**\n"\
@@ -378,10 +378,10 @@ describe Fastlane::Actions::ConventionalChangelogAction do
                             "   - Add another feature #{HASH_MARKDOWN}\n"\
                             "- **Scope 2:** Add one more feature #{HASH_MARKDOWN}\n"\
                             "### Bug fixes\n"\
-                            "- **Scope 2:** Add 1 more feature #{HASH_MARKDOWN}\n"\
                             "- **Scope 1:**\n"\
                             "   - Add 2 more feature #{HASH_MARKDOWN}\n"\
-                            "   - Add 3 more feature #{HASH_MARKDOWN}"\
+                            "   - Add 3 more feature #{HASH_MARKDOWN}\n"\
+                            "- **Scope 2:** Add 1 more feature #{HASH_MARKDOWN}"
 
 
           result = execute_lane_test(group_by_scope: true)
@@ -541,6 +541,133 @@ describe Fastlane::Actions::ConventionalChangelogAction do
                               "- **TrimScope:**\n"\
                               "   - Feature with padded scope #{HASH_MARKDOWN}\n"\
                               "   - Feature with clean scope #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+        end
+
+        describe "scope case normalization" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: 'cache', title: 'Feature with lowercase scope'),
+              commit(type: 'feat', scope: 'OFFLINE', title: 'Feature with uppercase scope'),
+              commit(type: 'feat', scope: 'Announcements', title: 'Feature with mixed case scope'),
+              commit(type: 'feat', scope: '  Schedule  ', title: 'Feature with padded scope')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should group case-insensitive scopes together and sort alphabetically in markdown format" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **Announcements:** Feature with mixed case scope #{HASH_MARKDOWN}\n"\
+                              "- **cache:** Feature with lowercase scope #{HASH_MARKDOWN}\n"\
+                              "- **OFFLINE:** Feature with uppercase scope #{HASH_MARKDOWN}\n"\
+                              "- **Schedule:** Feature with padded scope #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+
+          it "should group case-insensitive scopes together and sort alphabetically in plain format" do
+            expected_result = "1.0.2 (2019-05-25)\n\n"\
+                              "Features:\n"\
+                              "- Announcements: Feature with mixed case scope #{HASH_PLAIN}\n"\
+                              "- cache: Feature with lowercase scope #{HASH_PLAIN}\n"\
+                              "- OFFLINE: Feature with uppercase scope #{HASH_PLAIN}\n"\
+                              "- Schedule: Feature with padded scope #{HASH_PLAIN}"
+
+            result = execute_lane_test(group_by_scope: true, format: 'plain')
+            expect(result).to eq(expected_result)
+          end
+        end
+
+        describe "scope case normalization with duplicates" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: 'offline', title: 'First offline feature'),
+              commit(type: 'feat', scope: 'OFFLINE', title: 'Second offline feature'),
+              commit(type: 'feat', scope: 'Offline', title: 'Third offline feature'),
+              commit(type: 'feat', scope: '  offline  ', title: 'Fourth offline feature')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should group all case variations of the same scope together" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **offline:**\n"\
+                              "   - First offline feature #{HASH_MARKDOWN}\n"\
+                              "   - Second offline feature #{HASH_MARKDOWN}\n"\
+                              "   - Third offline feature #{HASH_MARKDOWN}\n"\
+                              "   - Fourth offline feature #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+        end
+
+        describe "alphabetical scope sorting" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: 'Zebra', title: 'Feature Z'),
+              commit(type: 'feat', scope: 'Apple', title: 'Feature A'),
+              commit(type: 'feat', scope: 'Monkey', title: 'Feature M'),
+              commit(type: 'feat', scope: 'Banana', title: 'Feature B')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should sort scopes alphabetically in markdown format" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **Apple:** Feature A #{HASH_MARKDOWN}\n"\
+                              "- **Banana:** Feature B #{HASH_MARKDOWN}\n"\
+                              "- **Monkey:** Feature M #{HASH_MARKDOWN}\n"\
+                              "- **Zebra:** Feature Z #{HASH_MARKDOWN}"
+
+            result = execute_lane_test(group_by_scope: true)
+            expect(result).to eq(expected_result)
+          end
+
+          it "should sort scopes alphabetically in plain format" do
+            expected_result = "1.0.2 (2019-05-25)\n\n"\
+                              "Features:\n"\
+                              "- Apple: Feature A #{HASH_PLAIN}\n"\
+                              "- Banana: Feature B #{HASH_PLAIN}\n"\
+                              "- Monkey: Feature M #{HASH_PLAIN}\n"\
+                              "- Zebra: Feature Z #{HASH_PLAIN}"
+
+            result = execute_lane_test(group_by_scope: true, format: 'plain')
+            expect(result).to eq(expected_result)
+          end
+        end
+
+        describe "alphabetical scope sorting with fallback scope" do
+          before do
+            commits = [
+              commit(type: 'feat', scope: 'Zebra', title: 'Feature Z'),
+              commit(type: 'feat', title: 'Feature without scope'),
+              commit(type: 'feat', scope: 'Apple', title: 'Feature A')
+            ]
+
+            allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+            allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+          end
+
+          it "should sort named scopes alphabetically and put fallback scope last" do
+            expected_result = "# 1.0.2 (2019-05-25)\n\n"\
+                              "### Features\n"\
+                              "- **Apple:** Feature A #{HASH_MARKDOWN}\n"\
+                              "- **Zebra:** Feature Z #{HASH_MARKDOWN}\n"\
+                              "- **Other work:** Feature without scope #{HASH_MARKDOWN}"
 
             result = execute_lane_test(group_by_scope: true)
             expect(result).to eq(expected_result)

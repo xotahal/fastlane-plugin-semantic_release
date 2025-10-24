@@ -159,6 +159,12 @@ module Fastlane
         end
       end
 
+      def self.normalize_scope_for_grouping(scope)
+        # Normalize scope to lowercase for consistent grouping
+        # This ensures "cache", "Cache", and "CACHE" all group together
+        scope.nil? ? nil : scope.downcase
+      end
+
       def self.note_builder_grouped(format, commits, version, commit_url, params)
         sections = params[:sections]
         validate_sections(sections)
@@ -181,28 +187,38 @@ module Fastlane
           type_text = style_text_grouped(sections[type.to_sym], format, "heading").to_s
           lines << type_text
 
-          commits_by_scope = non_merge_commits_in_type.group_by { |c| normalize_scope(c[:scope], sections[:no_type]) }
-
-          # Sort scopes to ensure consistent ordering: preserve order of first appearance, but put fallback scope last
-          scope_order = {}
-          non_merge_commits_in_type.each_with_index do |commit, index|
-            scope = normalize_scope(commit[:scope], sections[:no_type])
-            scope_order[scope] ||= index
+          # Group commits by normalized scope (lowercase) for consistent grouping
+          # but preserve the original scope for display
+          commits_by_normalized_scope = non_merge_commits_in_type.group_by do |c|
+            normalized = normalize_scope(c[:scope], sections[:no_type])
+            normalize_scope_for_grouping(normalized)
           end
 
-          sorted_scopes = commits_by_scope.keys.sort do |a, b|
-            if a == sections[:no_type] && b != sections[:no_type]
+          # Build a map of normalized scope -> original scope (use first occurrence)
+          normalized_to_original = {}
+          non_merge_commits_in_type.each do |commit|
+            normalized = normalize_scope(commit[:scope], sections[:no_type])
+            normalized_for_grouping = normalize_scope_for_grouping(normalized)
+            normalized_to_original[normalized_for_grouping] ||= normalized
+          end
+
+          # Sort scopes alphabetically, but put fallback scope last
+          sorted_normalized_scopes = commits_by_normalized_scope.keys.sort do |a, b|
+            fallback_normalized = normalize_scope_for_grouping(sections[:no_type])
+            if a == fallback_normalized && b != fallback_normalized
               1  # fallback scope comes last
-            elsif a != sections[:no_type] && b == sections[:no_type]
+            elsif a != fallback_normalized && b == fallback_normalized
               -1  # named scope comes first
             else
-              scope_order[a] <=> scope_order[b]  # preserve order of first appearance
+              a.casecmp(b)  # alphabetical sort (case-insensitive)
             end
           end
 
-          sorted_scopes.each do |plain_scope|
-            commits_in_scope = commits_by_scope[plain_scope]
-            scope = style_text_grouped("#{plain_scope}:", format, "bold").to_s
+          sorted_normalized_scopes.each do |normalized_scope|
+            commits_in_scope = commits_by_normalized_scope[normalized_scope]
+            # Use the original scope for display
+            display_scope = normalized_to_original[normalized_scope]
+            scope = style_text_grouped("#{display_scope}:", format, "bold").to_s
 
             is_single_commit = commits_in_scope.size == 1
             if is_single_commit
