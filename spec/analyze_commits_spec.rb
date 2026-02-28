@@ -152,6 +152,17 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       end
     end
 
+    it "should recognize capitalized commit types" do
+      commits = [
+        "Fix: capitalized fix|",
+        "Feat: capitalized feat|"
+      ]
+      test_analyze_commits(commits)
+
+      expect(execute_lane_test(match: 'v*')).to eq(true)
+      expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0")
+    end
+
     it "should return false since there is no change that would increase version" do
       commits = [
         "docs: ...|",

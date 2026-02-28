@@ -7,7 +7,7 @@ module Fastlane
     class SemanticReleaseHelper
       def self.format_patterns
         return {
-          "default" => /^(docs|fix|feat|chore|style|refactor|perf|test)(?:\((.*)\))?(!?): (.*)/,
+          "default" => /^(docs|fix|feat|chore|style|refactor|perf|test)(?:\((.*)\))?(!?): (.*)/i,
           "angular" => /^(\w*)(?:\((.*)\))?(): (.*)/
         }
       end
@@ -52,7 +52,7 @@ module Fastlane
         }
 
         unless matched.nil?
-          type = matched[1]
+          type = matched[1].downcase
           scope = matched[2]
 
           result[:is_valid] = true
