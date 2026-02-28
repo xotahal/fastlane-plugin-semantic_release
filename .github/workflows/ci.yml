@@ -43,7 +43,7 @@ jobs:
           chmod 0600 ~/.gem/credentials
       - name: Publish
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bundle exec fastlane publish
       - name: Clean up credentials
         if: always()

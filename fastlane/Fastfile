@@ -33,13 +33,8 @@ lane :publish do
   add_git_tag(tag: tag)
   push_git_tags
 
-  set_github_release(
-    repository_name: "xotahal/fastlane-plugin-semantic_release",
-    api_token: ENV["GH_TOKEN"],
-    name: next_version,
-    tag_name: tag,
-    description: notes,
-    commitish: "master",
-    upload_assets: ["./pkg/#{filename}"]
-  )
+  notes_file = "../RELEASE_NOTES.md"
+  File.write(notes_file, notes)
+  sh("gh release create #{tag} ./pkg/#{filename} --title '#{next_version}' --notes-file '#{notes_file}' --target master")
+  File.delete(notes_file)
 end
