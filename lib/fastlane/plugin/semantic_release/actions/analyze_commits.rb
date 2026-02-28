@@ -51,26 +51,11 @@ module Fastlane
         if tag.empty?
           UI.message("It couldn't match tag for #{params[:match]}. Check if first commit can be taken as a beginning of next release")
           # If there is no tag found we taking the first commit of current branch
-          hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
-
-          if hash_lines.to_i == 1
-            UI.message("First commit of the branch is taken as a begining of next release")
-            return {
-              # here we know this command will return 1 line
-              hash: Actions.sh(git_command, log: params[:debug]).chomp
-            }
-          end
-
-          unless params[:prevent_tag_fallback]
-            # neither matched tag and first hash could be used - as fallback we try vX.Y.Z
-            UI.message("It couldn't match tag for #{params[:match]} and couldn't use first commit. Check if tag vX.Y.Z can be taken as a begining of next release")
-            tag = get_last_tag(match: "v*", debug: params[:debug])
-          end
-
-          # even fallback tag doesn't work
-          if tag.empty?
-            return false
-          end
+          # Use tail -n 1 to handle repos with multiple root commits (e.g. merged histories)
+          UI.message("First commit of the branch is taken as a begining of next release")
+          return {
+            hash: Actions.sh("#{git_command} | tail -n 1", log: params[:debug]).chomp
+          }
         end
 
         # Tag's format is v2.3.4-5-g7685948
@@ -218,8 +203,8 @@ module Fastlane
       def self.is_codepush_friendly(params)
         git_command = "git rev-list --max-parents=0 HEAD"
         # Begining of the branch is taken for codepush analysis
-        hash_lines = Actions.sh("#{git_command} | wc -l", log: params[:debug]).chomp
-        hash = Actions.sh(git_command, log: params[:debug]).chomp
+        # Use tail -n 1 to handle repos with multiple root commits (e.g. merged histories)
+        hash = Actions.sh("#{git_command} | tail -n 1", log: params[:debug]).chomp
         next_major = 0
         next_minor = 0
         next_patch = 0
@@ -227,13 +212,6 @@ module Fastlane
         base_minor = next_minor
         base_patch = next_patch
         last_incompatible_codepush_version = '0.0.0'
-
-        if hash_lines.to_i > 1
-          UI.error("#{git_command} resulted to more than 1 hash")
-          UI.error('This usualy happens when you pull only part of a git history. Check out how you pull the repo! "git fetch" should be enough.')
-          Actions.sh(git_command, log: true).chomp
-          return false
-        end
 
         # Get commits log between last version and head
         splitted = get_commits_from_hash(
