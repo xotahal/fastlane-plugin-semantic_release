@@ -394,6 +394,20 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
     end
 
+    describe 'revert commits in changelog' do
+      it "should display reverted fix under Bug fixes section" do
+        commits = [
+          'Revert "fix(auth): crash on login"||long_hash|short_hash|Jiri Otahal|time'
+        ]
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = "# 1.0.2 (2019-05-25)\n\n### Bug fixes\n- **auth:** revert crash on login ([short_hash](/long_hash))"
+
+        expect(execute_lane_test).to eq(result)
+      end
+    end
+
     describe 'displaying exclamation mark breaking change' do
       it "should display breaking change from ! marker in markdown" do
         commits = [

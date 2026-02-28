@@ -42,7 +42,15 @@ module Fastlane
         codepush_friendly = params[:codepush_friendly]
         pattern = params[:pattern]
 
-        matched = commit_subject.match(pattern)
+        # Detect revert commits: Revert "type(scope): subject"
+        revert_match = commit_subject.match(/^Revert "(.+)"/i)
+        if revert_match
+          inner_subject = revert_match[1]
+          matched = inner_subject.match(pattern)
+        else
+          matched = commit_subject.match(pattern)
+        end
+
         result = {
           is_valid: false,
           subject: commit_subject,
@@ -54,10 +62,11 @@ module Fastlane
 
         type = matched[1].downcase
         result[:is_valid] = true
+        result[:is_revert] = !!revert_match
         result[:type] = type
         result[:scope] = matched[2]
         result[:has_exclamation_mark] = matched[3] == '!'
-        result[:subject] = matched[4]
+        result[:subject] = revert_match ? "revert #{matched[4]}" : matched[4]
 
         if result[:has_exclamation_mark]
           result[:is_breaking_change] = true

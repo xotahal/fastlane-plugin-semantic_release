@@ -644,6 +644,58 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       end
     end
 
+    describe "revert commits" do
+      it "should trigger patch bump for reverted fix" do
+        commits = [
+          'Revert "fix: crash on login"|'
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9")
+      end
+
+      it "should trigger minor bump for reverted feat" do
+        commits = [
+          'Revert "feat: add SSO support"|'
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0")
+      end
+
+      it "should trigger major bump for reverted breaking feat" do
+        commits = [
+          'Revert "feat!: remove legacy API"|'
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
+      end
+
+      it "should trigger minor bump for reverted scoped feat" do
+        commits = [
+          'Revert "feat(login): add SSO support"|'
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0")
+      end
+
+      it "should not bump for reverted non-conventional commit" do
+        commits = [
+          'Revert "not a conventional commit"|'
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*')).to eq(false)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.8")
+      end
+    end
+
     describe "no tag found" do
       it "should use first commit as beginning when no tag exists" do
         allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('')
