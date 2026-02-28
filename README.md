@@ -139,6 +139,7 @@ is_releasable = analyze_commits(match: 'ios/beta*')
 | `tag_version_match` | Regex to extract the version number from a tag name | `'\d+\.\d+\.\d+'` |
 | `prevent_tag_fallback` | When `true`, don't fall back to `vX.Y.Z` tags if no match is found | `false` |
 | `codepush_friendly` | Commit types considered CodePush-compatible | `['chore', 'test', 'docs']` |
+| `ignore_breaking_changes` | When `true`, breaking changes will not trigger a major version bump | `false` |
 | `show_version_path` | Print the calculated version for each commit | `true` |
 | `debug` | Enable verbose debug logging | `false` |
 
@@ -195,6 +196,7 @@ notes = conventional_changelog(format: 'slack', title: 'Android Alpha')
 | `display_author` | Show the author name for each commit | `false` |
 | `ignore_scopes` | Array of scopes to exclude | `[]` |
 | `include_scopes` | Array of scopes to exclusively include | `[]` |
+| `ignore_breaking_changes` | When `true`, the breaking changes section will not appear in the changelog. Also reads from `lane_context` if set by `analyze_commits` | `false` |
 | `debug` | Enable verbose debug logging | `false` |
 
 ## Examples
@@ -220,6 +222,15 @@ analyze_commits(
   match: 'v*',
   releases: { fix: 'patch', feat: 'minor', refactor: 'patch' }
 )
+```
+
+### Ignoring breaking changes
+
+Prevent breaking change markers from triggering major version bumps. The `!` suffix and `BREAKING CHANGE:` in the commit body will be ignored for both version bumping and changelog output:
+
+```ruby
+analyze_commits(match: 'v*', ignore_breaking_changes: true)
+notes = conventional_changelog(format: 'markdown')
 ```
 
 ### Plain text changelog for TestFlight
