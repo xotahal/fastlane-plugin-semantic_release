@@ -12,3 +12,4 @@ coverage
 test-results
 .bundle/
 vendor/bundle/
+.idea/
