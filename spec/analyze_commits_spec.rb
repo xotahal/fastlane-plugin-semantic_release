@@ -827,6 +827,108 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       end
     end
 
+    describe "prerelease" do
+      def test_prerelease(commits, tag)
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return(tag)
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+      end
+
+      it "should produce first pre-release version for a feat commit" do
+        test_prerelease(["feat: new feature|"], 'v1.0.8-1-g71ce4d8')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_prerelease_counter).and_return(1)
+
+        expect(execute_lane_test(match: 'v*', prerelease: 'beta')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0-beta.1")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION_BASE]).to eq("1.1.0")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_PRERELEASE]).to eq("beta.1")
+      end
+
+      it "should increment counter when pre-release tags already exist" do
+        test_prerelease(["feat: new feature|"], 'v1.0.8-1-g71ce4d8')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_prerelease_counter).and_return(3)
+
+        expect(execute_lane_test(match: 'v*', prerelease: 'beta')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0-beta.3")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION_BASE]).to eq("1.1.0")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_PRERELEASE]).to eq("beta.3")
+      end
+
+      it "should return false and not set pre-release when no releasable commits" do
+        test_prerelease(["docs: update readme|"], 'v1.0.8-1-g71ce4d8')
+
+        expect(execute_lane_test(match: 'v*', prerelease: 'beta')).to eq(false)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.8")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION_BASE]).to eq("1.0.8")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_PRERELEASE]).to be_nil
+      end
+
+      it "should work with rc identifier" do
+        test_prerelease(["fix: bugfix|"], 'v2.0.0-1-gabc1234')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_prerelease_counter).and_return(1)
+
+        expect(execute_lane_test(match: 'v*', prerelease: 'rc')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.1-rc.1")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_PRERELEASE]).to eq("rc.1")
+      end
+
+      it "should not interfere with tags from different identifiers" do
+        test_prerelease(["feat: new feature|"], 'v1.0.8-1-g71ce4d8')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_prerelease_counter).and_return(1)
+
+        expect(execute_lane_test(match: 'v*', prerelease: 'alpha')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0-alpha.1")
+      end
+
+      it "should work without prerelease (backward compat)" do
+        test_analyze_commits(["feat: new feature|"])
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION_BASE]).to eq("1.1.0")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_PRERELEASE]).to be_nil
+      end
+
+      it "should work with no tag found and prerelease" do
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('')
+        allow(Fastlane::Actions).to receive(:sh).with("git rev-list --max-parents=0 HEAD | tail -n 1", log: false).and_return("abc123\n")
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(
+          ["feat: new feature|"]
+        )
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_prerelease_counter).and_return(1)
+
+        expect(execute_lane_test(match: 'v*', prerelease: 'beta')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.1.0-beta.1")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION_BASE]).to eq("0.1.0")
+      end
+
+      it "should work with custom tag prefix and prerelease" do
+        test_prerelease(["fix: bugfix|"], 'ios-v1.0.8-1-g71ce4d8')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_prerelease_counter).and_return(1)
+
+        expect(execute_lane_test(match: 'ios-v*', prerelease: 'beta')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9-beta.1")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION_BASE]).to eq("1.0.9")
+      end
+    end
+
+    describe "derive_tag_prefix" do
+      it "should extract v prefix" do
+        expect(Fastlane::Helper::SemanticReleaseHelper.derive_tag_prefix("v1.0.0", "1.0.0")).to eq("v")
+      end
+
+      it "should extract multi-char prefix" do
+        expect(Fastlane::Helper::SemanticReleaseHelper.derive_tag_prefix("ios-v1.0.0", "1.0.0")).to eq("ios-v")
+      end
+
+      it "should return empty string when no prefix" do
+        expect(Fastlane::Helper::SemanticReleaseHelper.derive_tag_prefix("1.0.0", "1.0.0")).to eq("")
+      end
+
+      it "should return empty string when version not found" do
+        expect(Fastlane::Helper::SemanticReleaseHelper.derive_tag_prefix("sometag", "1.0.0")).to eq("")
+      end
+    end
+
     after do
     end
   end

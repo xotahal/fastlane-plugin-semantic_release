@@ -84,7 +84,7 @@ Style/AndOr:
   Enabled: true
   EnforcedStyle: conditionals
 Metrics/ClassLength:
-  Max: 320
+  Max: 350
 Layout/LineLength:
   Max: 370
 Metrics/ParameterLists:

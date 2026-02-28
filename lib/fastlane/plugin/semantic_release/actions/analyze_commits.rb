@@ -17,11 +17,16 @@ module Fastlane
       CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN = :CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN
       RELEASE_IGNORE_BREAKING_CHANGES = :RELEASE_IGNORE_BREAKING_CHANGES
       RELEASE_DRY_RUN = :RELEASE_DRY_RUN
+      RELEASE_NEXT_VERSION_BASE = :RELEASE_NEXT_VERSION_BASE
+      RELEASE_NEXT_PRERELEASE = :RELEASE_NEXT_PRERELEASE
     end
 
     class AnalyzeCommitsAction < Action
       def self.get_last_tag(params)
         command = "git describe --tags --match=#{params[:match]}"
+        if params[:prerelease]
+          command += " --exclude='#{params[:match]}-#{params[:prerelease]}.*'"
+        end
         Actions.sh(command, log: params[:debug])
       rescue StandardError
         UI.message("Tag was not found for match pattern - #{params[:match]}")
@@ -44,7 +49,7 @@ module Fastlane
 
       def self.get_beginning_of_next_sprint(params)
         git_command = "git rev-list --max-parents=0 HEAD"
-        tag = get_last_tag(match: params[:match], debug: params[:debug])
+        tag = get_last_tag(match: params[:match], debug: params[:debug], prerelease: params[:prerelease])
 
         if tag.empty?
           UI.message("It couldn't match tag for #{params[:match]}. Check if first commit can be taken as a beginning of next release")
@@ -71,7 +76,24 @@ module Fastlane
 
         UI.message("Found a tag #{tag_name} associated with version #{version}")
 
-        { hash: hash, version: version }
+        { hash: hash, version: version, tag_name: tag_name }
+      end
+
+      def self.get_prerelease_counter(params)
+        pattern = "#{params[:prefix]}#{params[:version]}-#{params[:prerelease]}.*"
+        command = "git tag -l '#{pattern}'"
+        tags = Actions.sh(command, log: params[:debug]).chomp
+        return 1 if tags.empty?
+
+        counter_pattern = /\A#{Regexp.escape("#{params[:prefix]}#{params[:version]}-#{params[:prerelease]}.")}(\d+)\z/
+        counters = tags.split("\n").filter_map do |tag|
+          match = tag.strip.match(counter_pattern)
+          match[1].to_i if match
+        end
+
+        return 1 if counters.empty?
+
+        counters.max + 1
       end
 
       def self.bump_version(major, minor, patch, commit)
@@ -157,6 +179,24 @@ module Fastlane
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
         is_next_version_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
 
+        prerelease_suffix = nil
+        if params[:prerelease] && is_next_version_releasable
+          tag_prefix = if beginning[:tag_name]
+                         Helper::SemanticReleaseHelper.derive_tag_prefix(beginning[:tag_name], version)
+                       else
+                         ''
+                       end
+          counter = get_prerelease_counter(
+            prefix: tag_prefix,
+            version: next_version,
+            prerelease: params[:prerelease],
+            debug: params[:debug]
+          )
+          prerelease_suffix = "#{params[:prerelease]}.#{counter}"
+        end
+
+        full_version = prerelease_suffix ? "#{next_version}-#{prerelease_suffix}" : next_version
+
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
         Actions.lane_context[SharedValues::RELEASE_IGNORE_BREAKING_CHANGES] = params[:ignore_breaking_changes]
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
@@ -166,10 +206,12 @@ module Fastlane
         Actions.lane_context[SharedValues::RELEASE_NEXT_MAJOR_VERSION] = next_major
         Actions.lane_context[SharedValues::RELEASE_NEXT_MINOR_VERSION] = next_minor
         Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = next_patch
-        Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = next_version
+        Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = full_version
+        Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION_BASE] = next_version
+        Actions.lane_context[SharedValues::RELEASE_NEXT_PRERELEASE] = prerelease_suffix
         Actions.lane_context[SharedValues::RELEASE_DRY_RUN] = params[:dry_run]
 
-        success_message = "Next version (#{next_version}) is higher than last version (#{version}). This version should be released."
+        success_message = "Next version (#{full_version}) is higher than last version (#{version}). This version should be released."
         UI.success(success_message) if is_next_version_releasable
 
         Helper::SemanticReleaseHelper.print_dry_run_summary(version, next_version, parsed_commits) if params[:dry_run]
@@ -333,6 +375,12 @@ module Fastlane
             optional: true
           ),
           FastlaneCore::ConfigItem.new(
+            key: :prerelease,
+            description: "Pre-release identifier (e.g., 'beta', 'rc', 'alpha'). When set, the next version will include a pre-release suffix like '1.1.0-beta.1'. The base version is always calculated from the last stable tag, and the counter auto-increments. Recommended to use with bump_per_commit: false so the counter increments properly across pre-releases",
+            optional: true,
+            default_value: nil
+          ),
+          FastlaneCore::ConfigItem.new(
             key: :dry_run,
             description: "When true, prints a release summary. All shared values are still set so conventional_changelog can preview notes",
             default_value: false,
@@ -352,7 +400,9 @@ module Fastlane
           ['RELEASE_NEXT_MAJOR_VERSION', 'Major number of the next version'],
           ['RELEASE_NEXT_MINOR_VERSION', 'Minor number of the next version'],
           ['RELEASE_NEXT_PATCH_VERSION', 'Patch number of the next version'],
-          ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)'],
+          ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch) or (major.minor.patch-prerelease.N) when prerelease is set'],
+          ['RELEASE_NEXT_VERSION_BASE', 'Base version without pre-release suffix (always major.minor.patch)'],
+          ['RELEASE_NEXT_PRERELEASE', 'Pre-release suffix (e.g., beta.1) or nil when prerelease is not set'],
           ['RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION', 'Last commit without codepush'],
           ['CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN', 'The format pattern Regexp used to match commits (mainly for internal use)'],
           ['RELEASE_DRY_RUN', 'True if this was a dry run analysis']

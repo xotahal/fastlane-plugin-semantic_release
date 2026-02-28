@@ -90,6 +90,13 @@ module Fastlane
         result
       end
 
+      def self.derive_tag_prefix(tag_name, version)
+        idx = tag_name.index(version)
+        return '' if idx.nil?
+
+        tag_name[0...idx]
+      end
+
       def self.semver_gt(first, second)
         (parse_semver(first) <=> parse_semver(second)) == 1
       end
