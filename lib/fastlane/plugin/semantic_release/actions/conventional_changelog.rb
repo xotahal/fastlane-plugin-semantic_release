@@ -45,20 +45,11 @@ module Fastlane
         end
 
         params[:order].each do |type|
-          next if commits.none? { |commit| commit[:type] == type }
+          type_commits = commits.select { |commit| commit[:type] == type && !commit[:is_merge] }
+          next if type_commits.empty?
 
           result += "#{style_text(sections[type.to_sym], format, 'heading')}\n"
-
-          commits.each do |commit|
-            next if commit[:type] != type || commit[:is_merge]
-
-            result += "-"
-            result += " #{style_text("#{commit[:scope]}:", format, 'bold')}" unless commit[:scope].nil?
-            result += " #{commit[:subject]}"
-            result += " (#{build_commit_link(commit, commit_url, format)})" if params[:display_links] == true
-            result += " - #{commit[:author_name]}" if params[:display_author]
-            result += "\n"
-          end
+          result += build_scope_lines(type_commits, format, commit_url, params)
           result += "\n"
         end
 
@@ -78,6 +69,35 @@ module Fastlane
         end
 
         result.rstrip!
+      end
+
+      def self.build_scope_lines(type_commits, format, commit_url, params)
+        result = ""
+        grouped = type_commits.group_by { |commit| commit[:scope] }
+
+        grouped.each do |scope, scope_commits|
+          if scope.nil? || scope_commits.length == 1
+            scope_commits.each do |commit|
+              result += build_commit_line("-", commit, format, commit_url, params, include_scope: true)
+            end
+          else
+            result += "- #{style_text("#{scope}:", format, 'bold')}\n"
+            scope_commits.each do |commit|
+              result += build_commit_line("  -", commit, format, commit_url, params, include_scope: false)
+            end
+          end
+        end
+
+        result
+      end
+
+      def self.build_commit_line(prefix, commit, format, commit_url, params, include_scope: true)
+        line = prefix
+        line += " #{style_text("#{commit[:scope]}:", format, 'bold')}" if include_scope && !commit[:scope].nil?
+        line += " #{commit[:subject]}"
+        line += " (#{build_commit_link(commit, commit_url, format)})" if params[:display_links] == true
+        line += " - #{commit[:author_name]}" if params[:display_author]
+        "#{line}\n"
       end
 
       def self.style_text(text, format, style)

@@ -314,6 +314,86 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
     end
 
+    describe 'grouping commits by scope' do
+      commits = [
+        "fix(map): search without country/state filters||long_hash|short_hash|Jiri Otahal|time",
+        "fix(map): revert search without country/state filters||long_hash|short_hash|Jiri Otahal|time",
+        "fix(auth): fix login crash||long_hash|short_hash|Jiri Otahal|time",
+        "feat: add dark mode||long_hash|short_hash|Jiri Otahal|time",
+        "feat(ui): new button component||long_hash|short_hash|Jiri Otahal|time",
+        "feat(ui): new modal component||long_hash|short_hash|Jiri Otahal|time"
+      ]
+
+      it "should group same-scope commits in markdown format" do
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = [
+          "# 1.0.2 (2019-05-25)",
+          "",
+          "### Features",
+          "- add dark mode ([short_hash](/long_hash))",
+          "- **ui:**",
+          "  - new button component ([short_hash](/long_hash))",
+          "  - new modal component ([short_hash](/long_hash))",
+          "",
+          "### Bug fixes",
+          "- **map:**",
+          "  - search without country/state filters ([short_hash](/long_hash))",
+          "  - revert search without country/state filters ([short_hash](/long_hash))",
+          "- **auth:** fix login crash ([short_hash](/long_hash))"
+        ].join("\n")
+
+        expect(execute_lane_test).to eq(result)
+      end
+
+      it "should group same-scope commits in slack format" do
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = [
+          "*1.0.2 (2019-05-25)*",
+          "",
+          "*Features*",
+          "- add dark mode (</long_hash|short_hash>)",
+          "- *ui:*",
+          "  - new button component (</long_hash|short_hash>)",
+          "  - new modal component (</long_hash|short_hash>)",
+          "",
+          "*Bug fixes*",
+          "- *map:*",
+          "  - search without country/state filters (</long_hash|short_hash>)",
+          "  - revert search without country/state filters (</long_hash|short_hash>)",
+          "- *auth:* fix login crash (</long_hash|short_hash>)"
+        ].join("\n")
+
+        expect(execute_lane_test_slack).to eq(result)
+      end
+
+      it "should group same-scope commits in plain format" do
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = [
+          "1.0.2 (2019-05-25)",
+          "",
+          "Features:",
+          "- add dark mode (/long_hash)",
+          "- ui:",
+          "  - new button component (/long_hash)",
+          "  - new modal component (/long_hash)",
+          "",
+          "Bug fixes:",
+          "- map:",
+          "  - search without country/state filters (/long_hash)",
+          "  - revert search without country/state filters (/long_hash)",
+          "- auth: fix login crash (/long_hash)"
+        ].join("\n")
+
+        expect(execute_lane_test_plain).to eq(result)
+      end
+    end
+
     describe 'displaying exclamation mark breaking change' do
       it "should display breaking change from ! marker in markdown" do
         commits = [
