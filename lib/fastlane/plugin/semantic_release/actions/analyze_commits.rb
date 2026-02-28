@@ -15,6 +15,7 @@ module Fastlane
       RELEASE_NEXT_VERSION = :RELEASE_NEXT_VERSION
       RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION = :RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION
       CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN = :CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN
+      RELEASE_IGNORE_BREAKING_CHANGES = :RELEASE_IGNORE_BREAKING_CHANGES
     end
 
     class AnalyzeCommitsAction < Action
@@ -137,6 +138,8 @@ module Fastlane
             ignore_scopes: params[:ignore_scopes]
           )
 
+          commit[:is_breaking_change] = false if params[:ignore_breaking_changes]
+
           next_major, next_minor, next_patch = bump_version(next_major, next_minor, next_patch, commit)
           is_next_version_compatible_with_codepush = false unless commit[:is_codepush_friendly]
 
@@ -152,6 +155,7 @@ module Fastlane
         is_next_version_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
 
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
+        Actions.lane_context[SharedValues::RELEASE_IGNORE_BREAKING_CHANGES] = params[:ignore_breaking_changes]
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = is_next_version_compatible_with_codepush
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
@@ -312,6 +316,13 @@ module Fastlane
             key: :bump_per_commit,
             description: "When true (default), each fix/feat commit increments the version. When false, only bump once per release (matching semantic-release behavior)",
             default_value: true,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :ignore_breaking_changes,
+            description: "When true, breaking changes will not trigger a major version bump",
+            default_value: false,
             type: Boolean,
             optional: true
           )

@@ -53,7 +53,9 @@ module Fastlane
           result += "\n"
         end
 
-        if commits.any? { |commit| commit[:is_breaking_change] == true }
+        ignore_breaking = params[:ignore_breaking_changes] || lane_context[SharedValues::RELEASE_IGNORE_BREAKING_CHANGES]
+
+        if !ignore_breaking && commits.any? { |commit| commit[:is_breaking_change] == true }
           result += "#{style_text('BREAKING CHANGES', format, 'heading')}\n"
 
           commits.each do |commit|
@@ -257,6 +259,13 @@ module Fastlane
           FastlaneCore::ConfigItem.new(
             key: :debug,
             description: "True if you want to log out a debug info",
+            default_value: false,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :ignore_breaking_changes,
+            description: "When true, breaking changes section will not appear in the changelog",
             default_value: false,
             type: Boolean,
             optional: true

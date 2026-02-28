@@ -6,6 +6,7 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN] = Fastlane::Helper::SemanticReleaseHelper.format_patterns["default"]
       Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION] = '1.0.2'
       Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_ANALYZED] = true
+      Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_IGNORE_BREAKING_CHANGES] = nil
     end
 
     def execute_lane_test(params = {})
@@ -403,6 +404,46 @@ describe Fastlane::Actions::ConventionalChangelogAction do
         allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
 
         result = "# 1.0.2 (2019-05-25)\n\n### Bug fixes\n- **auth:** revert crash on login ([short_hash](/long_hash))"
+
+        expect(execute_lane_test).to eq(result)
+      end
+    end
+
+    describe 'ignore_breaking_changes' do
+      it "should not display breaking changes section when ignore_breaking_changes is true" do
+        commits = [
+          "fix: sub|BREAKING CHANGE: Test|long_hash|short_hash|Jiri Otahal|time"
+        ]
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = "# 1.0.2 (2019-05-25)\n\n### Bug fixes\n- sub ([short_hash](/long_hash))"
+
+        expect(execute_lane_test(ignore_breaking_changes: true)).to eq(result)
+      end
+
+      it "should not display breaking changes section from ! marker when ignore_breaking_changes is true" do
+        commits = [
+          "feat!: a breaking feature||long_hash|short_hash|Jiri Otahal|time"
+        ]
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = "# 1.0.2 (2019-05-25)\n\n### Features\n- a breaking feature ([short_hash](/long_hash))"
+
+        expect(execute_lane_test(ignore_breaking_changes: true)).to eq(result)
+      end
+
+      it "should read ignore_breaking_changes from lane_context when not passed as param" do
+        Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_IGNORE_BREAKING_CHANGES] = true
+
+        commits = [
+          "fix: sub|BREAKING CHANGE: Test|long_hash|short_hash|Jiri Otahal|time"
+        ]
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = "# 1.0.2 (2019-05-25)\n\n### Bug fixes\n- sub ([short_hash](/long_hash))"
 
         expect(execute_lane_test).to eq(result)
       end

@@ -696,6 +696,38 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       end
     end
 
+    describe "ignore_breaking_changes" do
+      it "should treat breaking feat as minor bump when ignore_breaking_changes is true" do
+        commits = [
+          "feat!: a breaking feature|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', ignore_breaking_changes: true)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0")
+      end
+
+      it "should treat BREAKING CHANGE in body as normal fix bump when ignore_breaking_changes is true" do
+        commits = [
+          "fix: something|BREAKING CHANGE: big change"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', ignore_breaking_changes: true)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9")
+      end
+
+      it "should still bump major when ignore_breaking_changes is false" do
+        commits = [
+          "feat!: a breaking feature|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', ignore_breaking_changes: false)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
+      end
+    end
+
     describe "no tag found" do
       it "should use first commit as beginning when no tag exists" do
         allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('')
