@@ -5,7 +5,7 @@ lane :test do
 end
 
 lane :publish do
-  is_releasable = analyze_commits(match: 'v*')
+  is_releasable = analyze_commits(match: 'v*', ignore_scopes: ['ci'])
 
   unless is_releasable
     UI.message('Nothing to release')
@@ -35,6 +35,6 @@ lane :publish do
 
   notes_file = "../RELEASE_NOTES.md"
   File.write(notes_file, notes)
-  sh("gh release create #{tag} ./pkg/#{filename} --title '#{next_version}' --notes-file '#{notes_file}' --target master")
+  sh("gh release create #{tag} ../pkg/#{filename} --title '#{next_version}' --notes-file '#{notes_file}' --target master")
   File.delete(notes_file)
 end
