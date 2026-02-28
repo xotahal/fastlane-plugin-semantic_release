@@ -28,6 +28,8 @@ fastlane add_plugin semantic_release
 
 Automated version management and generator of release notes. Inspired by [semantic-release](https://github.com/semantic-release/semantic-release) for npm packages. Based on [conventional commits](https://www.conventionalcommits.org/).
 
+<img src="https://raw.githubusercontent.com/xotahal/fastlane-plugin-semantic_release/master/docs/Analyze.png" />
+
 ### Articles
 
 [Semantic Release for Fastlane](https://medium.com/@xotahal/semantic-release-for-fastlane-781df4cf5888?source=friends_link&sk=5c02e32daca7a68539e27e0e1bac1092) @ Medium - By Jiri Otahal
@@ -117,8 +119,6 @@ How it works:
 4. Analyzes each commit subject against conventional commit rules
 5. Calculates the next version based on commit types
 6. Returns `true` if the next version is higher than the last
-
-<img src="https://raw.githubusercontent.com/xotahal/fastlane-plugin-semantic_release/master/docs/Analyze.png" />
 
 Example:
 
