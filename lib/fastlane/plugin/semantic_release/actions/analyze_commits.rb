@@ -101,6 +101,18 @@ module Fastlane
         }
       end
 
+      def self.clamp_version(next_major, next_minor, next_patch, base_major, base_minor, base_patch)
+        if next_major > base_major
+          [base_major + 1, 0, 0]
+        elsif next_minor > base_minor
+          [next_major, base_minor + 1, 0]
+        elsif next_patch > base_patch
+          [next_major, next_minor, base_patch + 1]
+        else
+          [next_major, next_minor, next_patch]
+        end
+      end
+
       def self.is_releasable(params)
         # Hash of the commit where is the last version
         beginning = get_beginning_of_next_sprint(params)
@@ -121,6 +133,11 @@ module Fastlane
         next_major = (version.split('.')[0] || 0).to_i
         next_minor = (version.split('.')[1] || 0).to_i
         next_patch = (version.split('.')[2] || 0).to_i
+
+        # Save base version for potential clamping
+        base_major = next_major
+        base_minor = next_minor
+        base_patch = next_patch
 
         is_next_version_compatible_with_codepush = true
 
@@ -171,6 +188,11 @@ module Fastlane
           UI.message("#{next_version}: #{subject}") if params[:show_version_path]
         end
 
+        # When bump_per_commit is false, clamp to single increment
+        unless params[:bump_per_commit]
+          next_major, next_minor, next_patch = clamp_version(next_major, next_minor, next_patch, base_major, base_minor, base_patch)
+        end
+
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
 
         is_next_version_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
@@ -201,6 +223,9 @@ module Fastlane
         next_major = 0
         next_minor = 0
         next_patch = 0
+        base_major = next_major
+        base_minor = next_minor
+        base_patch = next_patch
         last_incompatible_codepush_version = '0.0.0'
 
         if hash_lines.to_i > 1
@@ -244,6 +269,10 @@ module Fastlane
           unless commit[:is_codepush_friendly]
             last_incompatible_codepush_version = "#{next_major}.#{next_minor}.#{next_patch}"
           end
+        end
+
+        unless params[:bump_per_commit]
+          next_major, next_minor, next_patch = clamp_version(next_major, next_minor, next_patch, base_major, base_minor, base_patch)
         end
 
         Actions.lane_context[SharedValues::RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION] = last_incompatible_codepush_version
@@ -351,6 +380,13 @@ module Fastlane
             key: :debug,
             description: "True if you want to log out a debug info",
             default_value: false,
+            type: Boolean,
+            optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :bump_per_commit,
+            description: "When true (default), each fix/feat commit increments the version. When false, only bump once per release (matching semantic-release behavior)",
+            default_value: true,
             type: Boolean,
             optional: true
           )

@@ -448,6 +448,65 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       end
     end
 
+    describe "bump_per_commit false" do
+      it "should increment patch only once for multiple fixes" do
+        commits = [
+          "fix: first fix|",
+          "fix: second fix|",
+          "fix: third fix|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', bump_per_commit: false)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9")
+      end
+
+      it "should increment minor only once for feat + fixes" do
+        commits = [
+          "feat: new feature|",
+          "fix: first fix|",
+          "fix: second fix|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', bump_per_commit: false)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0")
+      end
+
+      it "should increment minor only once for multiple feats" do
+        commits = [
+          "feat: feature one|",
+          "feat: feature two|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', bump_per_commit: false)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.0")
+      end
+
+      it "should increment major only once for breaking + feat + fix" do
+        commits = [
+          "fix: ...|BREAKING CHANGE: something",
+          "feat: ...|",
+          "fix: ...|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', bump_per_commit: false)).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
+      end
+
+      it "should return false when there is no releasable change" do
+        commits = [
+          "docs: update readme|",
+          "chore: cleanup|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', bump_per_commit: false)).to eq(false)
+      end
+    end
+
     after do
     end
   end
