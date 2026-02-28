@@ -240,6 +240,100 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
         expect(execute_lane_test(match: 'v*')).to eq(true)
         expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9")
       end
+
+      it "should handle tag without git describe suffix" do
+        commits = [
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v5.7.0')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v5.7.0', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("5.7.1")
+      end
+
+      it "should handle hyphenated tag without git describe suffix" do
+        commits = [
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.0-1-ios-beta')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v1.0.0-1-ios-beta', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.1")
+      end
+
+      it "should handle hyphenated tag with git describe suffix" do
+        commits = [
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.0-1-ios-beta-3-gabc1234')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v1.0.0-1-ios-beta', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.1")
+      end
+
+      it "should handle prerelease tag (v1.0.0-beta) without git describe suffix" do
+        commits = [
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.0-beta')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v1.0.0-beta', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+      end
+
+      it "should handle prerelease tag with git describe suffix" do
+        commits = [
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.0-beta-3-gabc1234')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v1.0.0-beta', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+      end
+
+      it "should handle rc tag (v2.0.0-rc.1) with git describe suffix" do
+        commits = [
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v2.0.0-rc.1-5-g1234abc')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v2.0.0-rc.1', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.1")
+      end
+
+      it "should handle release- prefix tag with git describe suffix" do
+        commits = [
+          "fix: ...|"
+        ]
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('release-1.2.3-7-gdeadbeef')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'release-1.2.3', debug: false)
+        expect(execute_lane_test(match: 'release-*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.2.4")
+      end
+
+      it "should not strip suffix-like parts from tag name" do
+        commits = [
+          "fix: ...|"
+        ]
+        # Tag v1.0.0-3-beta ends in -3-beta which looks like a suffix but isn't (beta is not g-prefixed hex)
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('v1.0.0-3-beta')
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(commits)
+
+        expect(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag_hash).with(tag_name: 'v1.0.0-3-beta', debug: false)
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+      end
     end
 
     it "should provide codepush last version" do

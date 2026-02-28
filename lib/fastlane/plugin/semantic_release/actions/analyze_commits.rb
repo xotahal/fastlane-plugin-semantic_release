@@ -53,12 +53,11 @@ module Fastlane
           }
         end
 
-        # Tag format is v2.3.4-5-g7685948 (see git describe man page)
-        # Strip the git describe suffix (-<count>-g<hash>) to get the tag name
-        tag_name = tag
-        if tag.split('-').length >= 3
-          tag_name = tag.split('-')[0...-2].join('-').strip
-        end
+        # git describe appends -<N>-g<hash> when HEAD is ahead of a tag.
+        # Use a regex to strip this specific suffix rather than splitting on
+        # dashes, which breaks when the tag itself contains dashes (e.g. v1.0.0-beta).
+        tag_name = tag.strip
+        tag_name = tag_name.sub(/-\d+-g[0-9a-f]+$/, '')
         parsed_version = tag_name.match(params[:tag_version_match])
 
         if parsed_version.nil?
