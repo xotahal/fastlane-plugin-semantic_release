@@ -34,6 +34,14 @@ module Fastlane
 
       def self.note_builder(format, commits, version, commit_url, params)
         sections = params[:sections]
+        order = params[:order].dup
+
+        # Auto-add any section keys not already in order
+        sections.each_key do |type_sym|
+          type_str = type_sym.to_s
+          order.push(type_str) unless order.include?(type_str)
+        end
+
         result = ""
 
         if params[:display_title] == true
@@ -44,11 +52,12 @@ module Fastlane
           result = "#{style_text(title, format, 'title')}\n\n"
         end
 
-        params[:order].each do |type|
+        order.each do |type|
           type_commits = commits.select { |commit| commit[:type] == type && !commit[:is_merge] }
           next if type_commits.empty?
 
-          result += "#{style_text(sections[type.to_sym], format, 'heading')}\n"
+          heading = sections[type.to_sym] || type.capitalize
+          result += "#{style_text(heading, format, 'heading')}\n"
           result += build_scope_lines(type_commits, format, commit_url, params)
           result += "\n"
         end
@@ -201,7 +210,7 @@ module Fastlane
           FastlaneCore::ConfigItem.new(
             key: :order,
             description: "You can change the order of groups in release notes",
-            default_value: ["feat", "fix", "refactor", "perf", "chore", "test", "docs", "no_type"],
+            default_value: ["feat", "fix", "refactor", "perf", "build", "ci", "style", "chore", "test", "docs", "no_type"],
             type: Array,
             optional: true
           ),
@@ -213,6 +222,9 @@ module Fastlane
               fix: "Bug fixes",
               refactor: "Code refactoring",
               perf: "Performance improvements",
+              build: "Build system",
+              ci: "CI/CD",
+              style: "Code style",
               chore: "Building system",
               test: "Testing",
               docs: "Documentation",

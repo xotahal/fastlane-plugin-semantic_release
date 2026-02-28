@@ -449,6 +449,58 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
     end
 
+    describe 'custom commit types in changelog' do
+      it "should display build and ci types under their sections" do
+        commits = [
+          "build: update webpack config||long_hash|short_hash|Jiri Otahal|time",
+          "ci: add github actions||long_hash|short_hash|Jiri Otahal|time",
+          "fix: a bug fix||long_hash|short_hash|Jiri Otahal|time"
+        ]
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = execute_lane_test(display_title: false, display_links: false)
+        expect(result).to include("### Build system")
+        expect(result).to include("### CI/CD")
+        expect(result).to include("### Bug fixes")
+      end
+
+      it "should auto-add section keys to order" do
+        commits = [
+          "custom: something new||long_hash|short_hash|Jiri Otahal|time"
+        ]
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = execute_lane_test(
+          display_title: false,
+          display_links: false,
+          sections: {
+            feat: "Features",
+            fix: "Bug fixes",
+            custom: "Custom section",
+            no_type: "Other work"
+          }
+        )
+        expect(result).to include("### Custom section")
+      end
+
+      it "should use capitalized type name as fallback heading" do
+        commits = [
+          "update: something||long_hash|short_hash|Jiri Otahal|time"
+        ]
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = execute_lane_test(
+          display_title: false,
+          display_links: false,
+          order: ["update", "no_type"]
+        )
+        expect(result).to include("### Update")
+      end
+    end
+
     describe 'displaying exclamation mark breaking change' do
       it "should display breaking change from ! marker in markdown" do
         commits = [

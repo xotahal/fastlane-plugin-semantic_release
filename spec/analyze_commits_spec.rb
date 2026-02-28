@@ -430,7 +430,7 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
           expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.8.0")
         end
 
-        it "should not allow for custom types" do
+        it "should allow for custom types with default format" do
           commits = [
             "foo: ...|",
             "bar: ...|",
@@ -446,6 +446,19 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
               baz: "minor"
             }
           )
+          expect(is_releasable).to eq(true)
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.3.0")
+        end
+
+        it "should not bump for custom types without release mapping" do
+          commits = [
+            "foo: ...|",
+            "bar: ...|",
+            "baz: ...|"
+          ]
+          test_analyze_commits(commits)
+
+          is_releasable = execute_lane_test(match: 'v*')
           expect(is_releasable).to eq(false)
           expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.8")
         end
@@ -502,6 +515,17 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
           )
           expect(is_releasable).to eq(true)
           expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.3.0")
+        end
+
+        it "should support exclamation mark breaking change" do
+          commits = [
+            "feat!: a breaking feature|"
+          ]
+          test_analyze_commits(commits)
+
+          is_releasable = execute_lane_test(match: 'v*', commit_format: 'angular')
+          expect(is_releasable).to eq(true)
+          expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
         end
       end
 
