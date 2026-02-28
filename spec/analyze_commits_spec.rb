@@ -518,6 +518,64 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       end
     end
 
+    describe "exclamation mark breaking change" do
+      it "should trigger major bump with ! and no BREAKING CHANGE in body" do
+        commits = [
+          "feat!: a breaking feature|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
+      end
+
+      it "should trigger major bump with ! and scope" do
+        commits = [
+          "fix(core)!: a breaking fix|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
+      end
+
+      it "should trigger major bump with ! even when body also has BREAKING CHANGE" do
+        commits = [
+          "feat!: a breaking feature|BREAKING CHANGE: details here"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("2.0.0")
+      end
+    end
+
+    describe "no tag found" do
+      it "should use first commit as beginning when no tag exists" do
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('')
+        allow(Fastlane::Actions).to receive(:sh).with("git rev-list --max-parents=0 HEAD | tail -n 1", log: false).and_return("abc123\n")
+        allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_commits_from_hash).and_return(
+          ["feat: new feature|"]
+        )
+
+        expect(execute_lane_test(match: 'v*')).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_LAST_VERSION]).to eq("0.0.0")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("0.1.0")
+      end
+    end
+
+    describe "should_exclude_commit edge cases" do
+      it "should not exclude commits with nil scope and empty ignore_scopes" do
+        commits = [
+          "fix: no scope commit|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(execute_lane_test(match: 'v*', ignore_scopes: [])).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.0.9")
+      end
+    end
+
     after do
     end
   end

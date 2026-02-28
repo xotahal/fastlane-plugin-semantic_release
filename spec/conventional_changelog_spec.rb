@@ -286,6 +286,48 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
     end
 
+    describe 'without prior analyze_commits' do
+      it "should raise error when release has not been analyzed" do
+        Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_ANALYZED] = false
+
+        expect do
+          execute_lane_test
+        end.to raise_error(FastlaneCore::Interface::FastlaneError, /Release hasn't been analyzed yet/)
+      end
+    end
+
+    describe 'include_scopes in changelog' do
+      commits = [
+        "fix(ios): ios fix||long_hash|short_hash|Jiri Otahal|time",
+        "fix(android): android fix||long_hash|short_hash|Jiri Otahal|time",
+        "fix(web): web fix||long_hash|short_hash|Jiri Otahal|time"
+      ]
+
+      it "should only include specified scopes" do
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = "# 1.0.2 (2019-05-25)\n\n### Bug fixes\n- **ios:** ios fix ([short_hash](/long_hash))"
+
+        changelog = execute_lane_test(include_scopes: ['ios'])
+        expect(changelog).to eq(result)
+      end
+    end
+
+    describe 'displaying exclamation mark breaking change' do
+      it "should display breaking change from ! marker in markdown" do
+        commits = [
+          "feat!: a breaking feature||long_hash|short_hash|Jiri Otahal|time"
+        ]
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = "# 1.0.2 (2019-05-25)\n\n### Features\n- a breaking feature ([short_hash](/long_hash))\n\n### BREAKING CHANGES\n- a breaking feature ([short_hash](/long_hash))"
+
+        expect(execute_lane_test).to eq(result)
+      end
+    end
+
     after do
     end
   end
