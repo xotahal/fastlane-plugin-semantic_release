@@ -19,7 +19,6 @@ module Fastlane
 
     class AnalyzeCommitsAction < Action
       def self.get_last_tag(params)
-        # Try to find the tag
         command = "git describe --tags --match=#{params[:match]}"
         Actions.sh(command, log: params[:debug])
       rescue StandardError
@@ -42,25 +41,20 @@ module Fastlane
       end
 
       def self.get_beginning_of_next_sprint(params)
-        # command to get first commit
         git_command = "git rev-list --max-parents=0 HEAD"
-
         tag = get_last_tag(match: params[:match], debug: params[:debug])
 
-        # if tag doesn't exist it get's first commit or fallback tag (v*.*.*)
         if tag.empty?
           UI.message("It couldn't match tag for #{params[:match]}. Check if first commit can be taken as a beginning of next release")
-          # If there is no tag found we taking the first commit of current branch
           # Use tail -n 1 to handle repos with multiple root commits (e.g. merged histories)
-          UI.message("First commit of the branch is taken as a begining of next release")
+          UI.message("First commit of the branch is taken as a beginning of next release")
           return {
             hash: Actions.sh("#{git_command} | tail -n 1", log: params[:debug]).chomp
           }
         end
 
-        # Tag's format is v2.3.4-5-g7685948
-        # See git describe man page for more info
-        # It can be also v2.3.4-5 if there is no commit after tag
+        # Tag format is v2.3.4-5-g7685948 (see git describe man page)
+        # Strip the git describe suffix (-<count>-g<hash>) to get the tag name
         tag_name = tag
         if tag.split('-').length >= 3
           tag_name = tag.split('-')[0...-2].join('-').strip
@@ -72,18 +66,23 @@ module Fastlane
         end
 
         version = parsed_version[0]
-        # Get a hash of last version tag
-        hash = get_last_tag_hash(
-          tag_name: tag_name,
-          debug: params[:debug]
-        )
+        hash = get_last_tag_hash(tag_name: tag_name, debug: params[:debug])
 
         UI.message("Found a tag #{tag_name} associated with version #{version}")
 
-        return {
-          hash: hash,
-          version: version
-        }
+        { hash: hash, version: version }
+      end
+
+      def self.bump_version(major, minor, patch, commit)
+        if commit[:release] == "major" || commit[:is_breaking_change]
+          [major + 1, 0, 0]
+        elsif commit[:release] == "minor"
+          [major, minor + 1, 0]
+        elsif commit[:release] == "patch"
+          [major, minor, patch + 1]
+        else
+          [major, minor, patch]
+        end
       end
 
       def self.clamp_version(next_major, next_minor, next_patch, base_major, base_minor, base_patch)
@@ -99,52 +98,37 @@ module Fastlane
       end
 
       def self.is_releasable(params)
-        # Hash of the commit where is the last version
         beginning = get_beginning_of_next_sprint(params)
 
         unless beginning
-          UI.error('It could not find a begining of this sprint. How to fix this:')
+          UI.error('It could not find a beginning of this sprint. How to fix this:')
           UI.error('-- ensure there is only one commit with --max-parents=0 (this command should return one line: "git rev-list --max-parents=0 HEAD")')
-          UI.error('-- tell us explicitely where the release starts by adding tag like this: vX.Y.Z (where X.Y.Z is version from which it starts computing next version number)')
+          UI.error('-- tell us explicitly where the release starts by adding tag like this: vX.Y.Z (where X.Y.Z is version from which it starts computing next version number)')
           return false
         end
 
-        # Default last version
         version = beginning[:version] || '0.0.0'
-        # If the tag is not found we are taking HEAD as reference
         hash = beginning[:hash] || 'HEAD'
 
-        # converts last version string to the int numbers
-        next_major = (version.split('.')[0] || 0).to_i
-        next_minor = (version.split('.')[1] || 0).to_i
-        next_patch = (version.split('.')[2] || 0).to_i
-
-        # Save base version for potential clamping
+        next_major, next_minor, next_patch = Helper::SemanticReleaseHelper.parse_semver(version)
         base_major = next_major
         base_minor = next_minor
         base_patch = next_patch
 
         is_next_version_compatible_with_codepush = true
 
-        # Get commits log between last version and head
-        splitted = get_commits_from_hash(
-          hash: hash,
-          debug: params[:debug]
-        )
-
-        UI.message("Found #{splitted.length} commits since last release")
-        releases = params[:releases]
+        commits = get_commits_from_hash(hash: hash, debug: params[:debug])
+        UI.message("Found #{commits.length} commits since last release")
 
         format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
-        splitted.each do |line|
+        commits.each do |line|
           parts = line.split("|")
           subject = parts[0].to_s.strip
-          # conventional commits are in format
-          # type: subject (fix: app crash - for example)
+
           commit = Helper::SemanticReleaseHelper.parse_commit(
             commit_subject: subject,
             commit_body: parts[1],
-            releases: releases,
+            releases: params[:releases],
             pattern: format_pattern
           )
 
@@ -154,41 +138,25 @@ module Fastlane
             ignore_scopes: params[:ignore_scopes]
           )
 
-          if commit[:release] == "major" || commit[:is_breaking_change]
-            next_major += 1
-            next_minor = 0
-            next_patch = 0
-          elsif commit[:release] == "minor"
-            next_minor += 1
-            next_patch = 0
-          elsif commit[:release] == "patch"
-            next_patch += 1
-          end
-
-          unless commit[:is_codepush_friendly]
-            is_next_version_compatible_with_codepush = false
-          end
+          next_major, next_minor, next_patch = bump_version(next_major, next_minor, next_patch, commit)
+          is_next_version_compatible_with_codepush = false unless commit[:is_codepush_friendly]
 
           next_version = "#{next_major}.#{next_minor}.#{next_patch}"
           UI.message("#{next_version}: #{subject}") if params[:show_version_path]
         end
 
-        # When bump_per_commit is false, clamp to single increment
         unless params[:bump_per_commit]
           next_major, next_minor, next_patch = clamp_version(next_major, next_minor, next_patch, base_major, base_minor, base_patch)
         end
 
         next_version = "#{next_major}.#{next_minor}.#{next_patch}"
-
         is_next_version_releasable = Helper::SemanticReleaseHelper.semver_gt(next_version, version)
 
         Actions.lane_context[SharedValues::RELEASE_ANALYZED] = true
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER] = is_next_version_releasable
         Actions.lane_context[SharedValues::RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH] = is_next_version_compatible_with_codepush
-        # Last release analysis
         Actions.lane_context[SharedValues::RELEASE_LAST_TAG_HASH] = hash
         Actions.lane_context[SharedValues::RELEASE_LAST_VERSION] = version
-        # Next release analysis
         Actions.lane_context[SharedValues::RELEASE_NEXT_MAJOR_VERSION] = next_major
         Actions.lane_context[SharedValues::RELEASE_NEXT_MINOR_VERSION] = next_minor
         Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = next_patch
@@ -202,47 +170,30 @@ module Fastlane
 
       def self.is_codepush_friendly(params)
         git_command = "git rev-list --max-parents=0 HEAD"
-        # Begining of the branch is taken for codepush analysis
         # Use tail -n 1 to handle repos with multiple root commits (e.g. merged histories)
         hash = Actions.sh("#{git_command} | tail -n 1", log: params[:debug]).chomp
         next_major = 0
         next_minor = 0
         next_patch = 0
-        base_major = next_major
-        base_minor = next_minor
-        base_patch = next_patch
+        base_major = 0
+        base_minor = 0
+        base_patch = 0
         last_incompatible_codepush_version = '0.0.0'
 
-        # Get commits log between last version and head
-        splitted = get_commits_from_hash(
-          hash: hash,
-          debug: params[:debug]
-        )
-        releases = params[:releases]
-        codepush_friendly = params[:codepush_friendly]
+        commits = get_commits_from_hash(hash: hash, debug: params[:debug])
 
         format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
-        splitted.each do |line|
-          # conventional commits are in format
-          # type: subject (fix: app crash - for example)
+        commits.each do |line|
+          parts = line.split("|")
           commit = Helper::SemanticReleaseHelper.parse_commit(
-            commit_subject: line.split("|")[0],
-            commit_body: line.split("|")[1],
-            releases: releases,
+            commit_subject: parts[0],
+            commit_body: parts[1],
+            releases: params[:releases],
             pattern: format_pattern,
-            codepush_friendly: codepush_friendly
+            codepush_friendly: params[:codepush_friendly]
           )
 
-          if commit[:release] == "major" || commit[:is_breaking_change]
-            next_major += 1
-            next_minor = 0
-            next_patch = 0
-          elsif commit[:release] == "minor"
-            next_minor += 1
-            next_patch = 0
-          elsif commit[:release] == "patch"
-            next_patch += 1
-          end
+          next_major, next_minor, next_patch = bump_version(next_major, next_minor, next_patch, commit)
 
           unless commit[:is_codepush_friendly]
             last_incompatible_codepush_version = "#{next_major}.#{next_minor}.#{next_patch}"
@@ -268,7 +219,7 @@ module Fastlane
       #####################################################
 
       def self.description
-        "Finds a tag of last release and determinates version of next release"
+        "Finds a tag of last release and determines version of next release"
       end
 
       def self.details
@@ -276,9 +227,6 @@ module Fastlane
       end
 
       def self.available_options
-        # Define all options your action supports.
-
-        # Below a few examples
         [
           FastlaneCore::ConfigItem.new(
             key: :match,
@@ -372,11 +320,9 @@ module Fastlane
       end
 
       def self.output
-        # Define the shared values you are going to provide
-        # Example
         [
           ['RELEASE_ANALYZED', 'True if commits were analyzed.'],
-          ['RELEASE_IS_NEXT_VERSION_HIGHER', 'True if next version is higher then last version'],
+          ['RELEASE_IS_NEXT_VERSION_HIGHER', 'True if next version is higher than last version'],
           ['RELEASE_IS_NEXT_VERSION_COMPATIBLE_WITH_CODEPUSH', 'True if next version is compatible with codepush'],
           ['RELEASE_LAST_TAG_HASH', 'Hash of commit that is tagged as a last version'],
           ['RELEASE_LAST_VERSION', 'Last version number - parsed from last tag.'],
@@ -390,17 +336,14 @@ module Fastlane
       end
 
       def self.return_value
-        # If your method provides a return value, you can describe here what it does
-        "Returns true if the next version is higher then the last version"
+        "Returns true if the next version is higher than the last version"
       end
 
       def self.authors
-        # So no one will ever forget your contribution to fastlane :) You are awesome btw!
         ["xotahal"]
       end
 
       def self.is_supported?(platform)
-        # you can do things like
         true
       end
     end

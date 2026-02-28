@@ -5,16 +5,20 @@ module Fastlane
 
   module Helper
     class SemanticReleaseHelper
+      FORMAT_PATTERNS = {
+        "default" => /^(docs|fix|feat|chore|style|refactor|perf|test)(?:\((.*)\))?(!?): (.*)/i,
+        "angular" => /^(\w*)(?:\((.*)\))?(): (.*)/
+      }.freeze
+
       def self.format_patterns
-        return {
-          "default" => /^(docs|fix|feat|chore|style|refactor|perf|test)(?:\((.*)\))?(!?): (.*)/i,
-          "angular" => /^(\w*)(?:\((.*)\))?(): (.*)/
-        }
+        FORMAT_PATTERNS
       end
 
-      # class methods that you define here become available in your action
-      # as `Helper::SemanticReleaseHelper.your_method`
-      #
+      def self.parse_semver(version_string)
+        parts = version_string.split('.')
+        [(parts[0] || 0).to_i, (parts[1] || 0).to_i, (parts[2] || 0).to_i]
+      end
+
       def self.git_log(params)
         command = "git log --pretty='#{params[:pretty]}' --reverse #{params[:start]}..HEAD"
         Actions.sh(command, log: params[:debug]).chomp
@@ -25,13 +29,10 @@ module Fastlane
         scopes_to_include = params[:include_scopes]
         scopes_to_ignore = params[:ignore_scopes]
 
-        unless scopes_to_include.empty?
-          return !scopes_to_include.include?(commit_scope)
-        end
+        return !scopes_to_include.include?(commit_scope) unless scopes_to_include.empty?
+        return scopes_to_ignore.include?(commit_scope) unless commit_scope.nil?
 
-        unless commit_scope.nil?
-          return scopes_to_ignore.include?(commit_scope)
-        end
+        false
       end
 
       def self.parse_commit(params)
@@ -40,8 +41,6 @@ module Fastlane
         releases = params[:releases]
         codepush_friendly = params[:codepush_friendly]
         pattern = params[:pattern]
-        breaking_change_pattern = /BREAKING CHANGES?: (.*)/
-        codepush_pattern = /codepush?: (.*)/
 
         matched = commit_subject.match(pattern)
         result = {
@@ -51,67 +50,39 @@ module Fastlane
           type: 'no_type'
         }
 
-        unless matched.nil?
-          type = matched[1].downcase
-          scope = matched[2]
+        return result if matched.nil?
 
-          result[:is_valid] = true
-          result[:type] = type
-          result[:scope] = scope
-          result[:has_exclamation_mark] = matched[3] == '!'
-          result[:subject] = matched[4]
+        type = matched[1].downcase
+        result[:is_valid] = true
+        result[:type] = type
+        result[:scope] = matched[2]
+        result[:has_exclamation_mark] = matched[3] == '!'
+        result[:subject] = matched[4]
 
-          unless releases.nil?
-            result[:release] = releases[type.to_sym]
+        if result[:has_exclamation_mark]
+          result[:is_breaking_change] = true
+          result[:breaking_change] = matched[4]
+        end
+
+        result[:release] = releases[type.to_sym] unless releases.nil?
+        result[:is_codepush_friendly] = codepush_friendly.include?(type) unless codepush_friendly.nil?
+
+        unless commit_body.nil?
+          breaking_match = commit_body.match(/BREAKING CHANGES?: (.*)/)
+          codepush_match = commit_body.match(/codepush?: (.*)/)
+
+          if breaking_match
+            result[:is_breaking_change] = true
+            result[:breaking_change] = breaking_match[1]
           end
-          unless codepush_friendly.nil?
-            result[:is_codepush_friendly] = codepush_friendly.include?(type)
-          end
-
-          unless commit_body.nil?
-            breaking_change_matched = commit_body.match(breaking_change_pattern)
-            codepush_matched = commit_body.match(codepush_pattern)
-
-            unless breaking_change_matched.nil?
-              result[:is_breaking_change] = true
-              result[:breaking_change] = breaking_change_matched[1]
-            end
-            unless codepush_matched.nil?
-              result[:is_codepush_friendly] = codepush_matched[1] == 'ok'
-            end
-          end
+          result[:is_codepush_friendly] = (codepush_match[1] == 'ok') if codepush_match
         end
 
         result
       end
 
       def self.semver_gt(first, second)
-        first_major = (first.split('.')[0] || 0).to_i
-        first_minor = (first.split('.')[1] || 0).to_i
-        first_patch = (first.split('.')[2] || 0).to_i
-
-        second_major = (second.split('.')[0] || 0).to_i
-        second_minor = (second.split('.')[1] || 0).to_i
-        second_patch = (second.split('.')[2] || 0).to_i
-
-        # Check if next version is higher then last version
-        if first_major > second_major
-          return true
-        elsif first_major == second_major
-          if first_minor > second_minor
-            return true
-          elsif first_minor == second_minor
-            if first_patch > second_patch
-              return true
-            end
-          end
-        end
-
-        return false
-      end
-
-      def self.semver_lt(first, second)
-        return !semver_gt(first, second)
+        (parse_semver(first) <=> parse_semver(second)) == 1
       end
     end
   end
