@@ -1,7 +1,7 @@
 # semantic_release plugin for `fastlane`
 
 [![CI](https://github.com/xotahal/fastlane-plugin-semantic_release/actions/workflows/ci.yml/badge.svg)](https://github.com/xotahal/fastlane-plugin-semantic_release/actions/workflows/ci.yml)
-[![Gem Version](https://badge.fury.io/rb/fastlane-plugin-semantic_release.svg)](https://badge.fury.io/rb/fastlane-plugin-semantic_release)
+[![Gem Version](https://img.shields.io/gem/v/fastlane-plugin-semantic_release)](https://rubygems.org/gems/fastlane-plugin-semantic_release)
 [![License](https://img.shields.io/github/license/xotahal/fastlane-plugin-semantic_release.svg)](https://github.com/xotahal/fastlane-plugin-semantic_release/blob/master/LICENSE)
 [![fastlane Plugin Badge](https://rawcdn.githack.com/fastlane/fastlane/master/fastlane/assets/plugin-badge.svg)](https://rubygems.org/gems/fastlane-plugin-semantic_release)
 
