@@ -40,9 +40,7 @@ module Fastlane
         commit_url = params[:commit_url]
         format = params[:format]
 
-        result = note_builder(format, parsed, version, commit_url, params)
-
-        result
+        note_builder(format, parsed, version, commit_url, params)
       end
 
       def self.note_builder(format, commits, version, commit_url, params)
@@ -99,6 +97,7 @@ module Fastlane
 
           commits.each do |commit|
             next unless commit[:is_breaking_change]
+
             result += "- #{commit[:breaking_change]}" # This is the only unique part of this loop
 
             if params[:display_links] == true
@@ -117,9 +116,7 @@ module Fastlane
         end
 
         # Trim any trailing newlines
-        result = result.rstrip!
-
-        result
+        result.rstrip!
       end
 
       def self.style_text(text, format, style)
