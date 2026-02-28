@@ -752,6 +752,55 @@ describe Fastlane::Actions::AnalyzeCommitsAction do
       end
     end
 
+    describe "dry_run" do
+      it "should set RELEASE_DRY_RUN to true when dry_run is true" do
+        commits = [
+          "feat: add dark mode|",
+          "fix: token refresh|"
+        ]
+        test_analyze_commits(commits)
+
+        execute_lane_test(match: 'v*', dry_run: true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_DRY_RUN]).to eq(true)
+      end
+
+      it "should set RELEASE_DRY_RUN to false by default" do
+        commits = [
+          "feat: add dark mode|"
+        ]
+        test_analyze_commits(commits)
+
+        execute_lane_test(match: 'v*')
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_DRY_RUN]).to eq(false)
+      end
+
+      it "should still set all lane_context values during dry run" do
+        commits = [
+          "feat: add dark mode|",
+          "fix: a bug|"
+        ]
+        test_analyze_commits(commits)
+
+        execute_lane_test(match: 'v*', dry_run: true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_ANALYZED]).to eq(true)
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_NEXT_VERSION]).to eq("1.1.1")
+        expect(Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::RELEASE_IS_NEXT_VERSION_HIGHER]).to eq(true)
+      end
+
+      it "should print dry run summary" do
+        commits = [
+          "feat: add dark mode|",
+          "fix(auth): token refresh|"
+        ]
+        test_analyze_commits(commits)
+
+        expect(Fastlane::UI).to receive(:important).with("--- DRY RUN: Release Analysis Summary ---")
+        expect(Fastlane::UI).to receive(:important).with("--- End of Dry Run ---")
+
+        execute_lane_test(match: 'v*', dry_run: true)
+      end
+    end
+
     describe "no tag found" do
       it "should use first commit as beginning when no tag exists" do
         allow(Fastlane::Actions::AnalyzeCommitsAction).to receive(:get_last_tag).and_return('')

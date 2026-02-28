@@ -16,6 +16,7 @@ module Fastlane
       RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION = :RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION
       CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN = :CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN
       RELEASE_IGNORE_BREAKING_CHANGES = :RELEASE_IGNORE_BREAKING_CHANGES
+      RELEASE_DRY_RUN = :RELEASE_DRY_RUN
     end
 
     class AnalyzeCommitsAction < Action
@@ -120,6 +121,7 @@ module Fastlane
         commits = get_commits_from_hash(hash: hash, debug: params[:debug])
         UI.message("Found #{commits.length} commits since last release")
 
+        parsed_commits = []
         format_pattern = lane_context[SharedValues::CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN]
         commits.each do |line|
           parts = line.split("|")
@@ -140,6 +142,7 @@ module Fastlane
 
           commit[:is_breaking_change] = false if params[:ignore_breaking_changes]
 
+          parsed_commits.push(commit)
           next_major, next_minor, next_patch = bump_version(next_major, next_minor, next_patch, commit)
           is_next_version_compatible_with_codepush = false unless commit[:is_codepush_friendly]
 
@@ -164,9 +167,12 @@ module Fastlane
         Actions.lane_context[SharedValues::RELEASE_NEXT_MINOR_VERSION] = next_minor
         Actions.lane_context[SharedValues::RELEASE_NEXT_PATCH_VERSION] = next_patch
         Actions.lane_context[SharedValues::RELEASE_NEXT_VERSION] = next_version
+        Actions.lane_context[SharedValues::RELEASE_DRY_RUN] = params[:dry_run]
 
         success_message = "Next version (#{next_version}) is higher than last version (#{version}). This version should be released."
         UI.success(success_message) if is_next_version_releasable
+
+        Helper::SemanticReleaseHelper.print_dry_run_summary(version, next_version, parsed_commits) if params[:dry_run]
 
         is_next_version_releasable
       end
@@ -325,6 +331,13 @@ module Fastlane
             default_value: false,
             type: Boolean,
             optional: true
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :dry_run,
+            description: "When true, prints a release summary. All shared values are still set so conventional_changelog can preview notes",
+            default_value: false,
+            type: Boolean,
+            optional: true
           )
         ]
       end
@@ -341,7 +354,8 @@ module Fastlane
           ['RELEASE_NEXT_PATCH_VERSION', 'Patch number of the next version'],
           ['RELEASE_NEXT_VERSION', 'Next version string in format (major.minor.patch)'],
           ['RELEASE_LAST_INCOMPATIBLE_CODEPUSH_VERSION', 'Last commit without codepush'],
-          ['CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN', 'The format pattern Regexp used to match commits (mainly for internal use)']
+          ['CONVENTIONAL_CHANGELOG_ACTION_FORMAT_PATTERN', 'The format pattern Regexp used to match commits (mainly for internal use)'],
+          ['RELEASE_DRY_RUN', 'True if this was a dry run analysis']
         ]
       end
 

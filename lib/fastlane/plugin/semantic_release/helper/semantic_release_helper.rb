@@ -93,6 +93,43 @@ module Fastlane
       def self.semver_gt(first, second)
         (parse_semver(first) <=> parse_semver(second)) == 1
       end
+
+      def self.determine_bump_type(version, next_version)
+        old_parts = parse_semver(version)
+        new_parts = parse_semver(next_version)
+
+        if new_parts[0] > old_parts[0]
+          "major"
+        elsif new_parts[1] > old_parts[1]
+          "minor"
+        elsif new_parts[2] > old_parts[2]
+          "patch"
+        else
+          "none"
+        end
+      end
+
+      def self.print_dry_run_summary(version, next_version, parsed_commits)
+        bump_type = determine_bump_type(version, next_version)
+
+        UI.important("--- DRY RUN: Release Analysis Summary ---")
+        UI.message("Current version: #{version}")
+        UI.message("Next version:    #{next_version} (#{bump_type})")
+
+        type_counts = Hash.new(0)
+        parsed_commits.each { |c| type_counts[c[:type]] += 1 }
+
+        UI.message("Commits analyzed: #{parsed_commits.length}")
+        type_counts.each { |type, count| UI.message("  #{type}: #{count}") }
+
+        UI.message("Commits included in this release:")
+        parsed_commits.each do |commit|
+          scope_part = commit[:scope] ? "(#{commit[:scope]})" : ""
+          UI.message("  - #{commit[:type]}#{scope_part}: #{commit[:subject]}")
+        end
+
+        UI.important("--- End of Dry Run ---")
+      end
     end
   end
 end
