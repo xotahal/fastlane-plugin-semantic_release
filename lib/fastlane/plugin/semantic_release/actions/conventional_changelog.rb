@@ -84,7 +84,7 @@ module Fastlane
 
       def self.build_scope_lines(type_commits, format, commit_url, params)
         result = ""
-        grouped = type_commits.group_by { |commit| commit[:scope] }
+        grouped = type_commits.group_by { |commit| commit[:scope]&.downcase }
 
         grouped.each do |scope, scope_commits|
           if scope.nil? || scope_commits.length == 1
@@ -92,7 +92,8 @@ module Fastlane
               result += build_commit_line("-", commit, format, commit_url, params, include_scope: true)
             end
           else
-            result += "- #{style_text("#{scope}:", format, 'bold')}\n"
+            display_scope = scope_commits.first[:scope]
+            result += "- #{style_text("#{display_scope}:", format, 'bold')}\n"
             scope_commits.each do |commit|
               result += build_commit_line("  -", commit, format, commit_url, params, include_scope: false)
             end

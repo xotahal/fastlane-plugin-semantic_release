@@ -395,6 +395,33 @@ describe Fastlane::Actions::ConventionalChangelogAction do
       end
     end
 
+    describe 'case-insensitive scope grouping' do
+      commits = [
+        "feat(Login): add biometric auth||long_hash|short_hash|Jiri Otahal|time",
+        "fix(login): fix session timeout||long_hash|short_hash|Jiri Otahal|time",
+        "feat(LOGIN): add SSO support||long_hash|short_hash|Jiri Otahal|time"
+      ]
+
+      it "should group scopes case-insensitively in markdown format" do
+        allow(Fastlane::Actions::ConventionalChangelogAction).to receive(:get_commits_from_hash).and_return(commits)
+        allow(Date).to receive(:today).and_return(Date.new(2019, 5, 25))
+
+        result = [
+          "# 1.0.2 (2019-05-25)",
+          "",
+          "### Features",
+          "- **Login:**",
+          "  - add biometric auth ([short_hash](/long_hash))",
+          "  - add SSO support ([short_hash](/long_hash))",
+          "",
+          "### Bug fixes",
+          "- **login:** fix session timeout ([short_hash](/long_hash))"
+        ].join("\n")
+
+        expect(execute_lane_test).to eq(result)
+      end
+    end
+
     describe 'revert commits in changelog' do
       it "should display reverted fix under Bug fixes section" do
         commits = [
